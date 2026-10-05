@@ -1,0 +1,17 @@
+{
+  "observation": {
+    "mint": "string",
+    "pair": "string|null",
+    "observedAt": "ISO-8601",
+    "priceUsd": "number|null",
+    "liquidityUsd": "number|null",
+    "volume24h": "number|null",
+    "txns24h": "integer|null",
+    "buys24h": "integer|null",
+    "sells24h": "integer|null",
+    "holderCount": "integer|null",
+    "top10Share": "number|null",
+    "uniqueOwnersTop20": "integer|null"
+  },
+  "rule": "Unknown values remain null; they are never converted to zero."
+}

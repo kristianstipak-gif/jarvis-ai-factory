@@ -1,24 +1,28 @@
+import { riskPenalty } from "./risk-rules.js";
+
 export function buildRiskSignals({ market = {}, onchain = {}, wallet = {} } = {}) {
-  const txns = Number(market.txns24h || 0);
-  const buyRatio = txns ? Number(market.buys24h || 0) / txns : 0;
-  const volumeLiquidity = Number(market.liquidityUsd || 0) > 0
-    ? Number(market.volume24h || 0) / Number(market.liquidityUsd)
-    : 0;
+  const txns = Number(market.txns24h);
+  const buys = Number(market.buys24h);
+  const buyRatio = Number.isFinite(txns) && txns > 0 && Number.isFinite(buys) ? buys / txns : null;
+
+  const liquidity = Number(market.liquidityUsd);
+  const volume = Number(market.volume24h);
+  const volumeLiquidity = Number.isFinite(liquidity) && liquidity > 0 && Number.isFinite(volume)
+    ? volume / liquidity
+    : null;
 
   const concentration = Number(onchain.top10ShareOfTotalSupply);
   const failedRate = Number(wallet.failedRate);
+  const creatorLinkedShare = Number(wallet.creatorLinkedShare);
 
   const flags = {
     extremeConcentration: Number.isFinite(concentration) && concentration > 0.55,
-    extremeBuyImbalance: buyRatio > 0.92,
-    extremeVelocity: volumeLiquidity > 8,
+    extremeBuyImbalance: Number.isFinite(buyRatio) && buyRatio > 0.92,
+    extremeVelocity: Number.isFinite(volumeLiquidity) && volumeLiquidity > 8,
     failedTxRate: Number.isFinite(failedRate) && failedRate > 0.25,
     synchronizedCluster: Boolean(wallet.synchronizedCluster),
-    creatorLinkedShare: Number(wallet.creatorLinkedShare || 0) > 0.35,
+    creatorLinkedShare: Number.isFinite(creatorLinkedShare) && creatorLinkedShare > 0.35,
   };
-
-  const riskCount = Object.values(flags).filter(Boolean).length;
-  const penalty = riskCount * 10;
 
   return {
     buyRatio,
@@ -26,8 +30,8 @@ export function buildRiskSignals({ market = {}, onchain = {}, wallet = {} } = {}
     concentration: Number.isFinite(concentration) ? concentration : null,
     failedRate: Number.isFinite(failedRate) ? failedRate : null,
     flags,
-    riskCount,
-    penalty,
+    riskCount: Object.values(flags).filter(Boolean).length,
+    penalty: riskPenalty(flags),
   };
 }
 

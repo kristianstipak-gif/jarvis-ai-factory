@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 
 const RPC = "https://api.mainnet-beta.solana.com";
+const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 
 async function rpc(method, params) {
   const response = await fetch(RPC, {
@@ -20,33 +21,70 @@ export async function GET(request, { params }) {
   if (!address) return Response.json({ error: "Missing token address" }, { status: 400 });
 
   try {
-    const [largest, signatures] = await Promise.all([
+    const [largest, supply] = await Promise.all([
       rpc("getTokenLargestAccounts", [address, { commitment: "confirmed" }]),
-      rpc("getSignaturesForAddress", [address, { commitment: "confirmed", limit: 50 }]),
+      rpc("getTokenSupply", [address, { commitment: "confirmed" }]),
     ]);
 
     const holders = largest?.value || [];
-    const total = holders.reduce((sum, h) => sum + Number(h.uiAmount || 0), 0);
-    const top10 = holders.slice(0, 10).reduce((sum, h) => sum + Number(h.uiAmount || 0), 0);
-    const concentration = total > 0 ? top10 / total : null;
+    const accounts = holders.map((x) => x.address).filter(Boolean);
+
+    const accountInfo = accounts.length
+      ? await rpc("getMultipleAccounts", [
+          accounts,
+          { encoding: "jsonParsed", commitment: "confirmed" },
+        ])
+      : { value: [] };
+
+    const enriched = holders.map((account, index) => {
+      const parsed = accountInfo?.value?.[index]?.data?.parsed?.info;
+      return {
+        tokenAccount: account.address,
+        amount: account.uiAmount,
+        decimals: account.decimals,
+        owner: parsed?.owner || null,
+        state: parsed?.state || null,
+      };
+    });
+
+    const totalSupply = Number(supply?.value?.uiAmount || 0);
+    const top10 = enriched.slice(0, 10).reduce((sum, x) => sum + Number(x.amount || 0), 0);
+    const uniqueOwners = new Set(enriched.map((x) => x.owner).filter(Boolean));
+
+    const ownerAmounts = new Map();
+    for (const row of enriched) {
+      if (!row.owner) continue;
+      ownerAmounts.set(row.owner, (ownerAmounts.get(row.owner) || 0) + Number(row.amount || 0));
+    }
+
+    const ownerRank = [...ownerAmounts.entries()]
+      .map(([owner, amount]) => ({
+        owner,
+        amount,
+        shareOfTop20Sample: top10 ? amount / top10 : 0,
+      }))
+      .sort((a, b) => b.amount - a.amount);
 
     return Response.json({
-      address,
+      mint: address,
       source: "Solana mainnet RPC",
-      holderAccountsSample: holders.length,
-      top20: holders,
-      top10ShareOfTop20Sample: concentration,
-      recentSignatureCount: signatures?.length || 0,
-      recentSignatures: (signatures || []).slice(0, 20).map((x) => ({
-        signature: x.signature,
-        slot: x.slot,
-        blockTime: x.blockTime,
-        status: x.err ? "failed" : "ok",
-      })),
-      note: "This is an initial on-chain risk signal. getTokenLargestAccounts returns the 20 largest token accounts, so concentration here is not the same as total-wallet concentration.",
+      supply: supply?.value || null,
+      top10ShareOfTotalSupply: totalSupply ? top10 / totalSupply : null,
+      sampledTokenAccounts: enriched.length,
+      uniqueOwnersInTop20: uniqueOwners.size,
+      ownerRank,
+      accounts: enriched,
+      limitations: [
+        "Only the 20 largest token accounts are sampled.",
+        "Owner concentration is not proof of common control.",
+        "Funding-source and transaction-history clustering require additional historical RPC/indexer data.",
+      ],
       updatedAt: new Date().toISOString(),
     });
   } catch (error) {
-    return Response.json({ error: "Token analysis unavailable", detail: String(error) }, { status: 502 });
+    return Response.json(
+      { error: "Token analysis unavailable", detail: String(error) },
+      { status: 502 }
+    );
   }
 }

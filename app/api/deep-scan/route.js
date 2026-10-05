@@ -1,5 +1,5 @@
-import { collectFromUrl } from "../../../../research/collector.js";
-import { runDeepEnrichment } from "../../../../research/live-enrichment.js";
+import { collectFromUrl } from "../../../research/collector.js";
+import { runDeepEnrichment } from "../../../research/live-enrichment.js";
 
 export const runtime = "nodejs";
 

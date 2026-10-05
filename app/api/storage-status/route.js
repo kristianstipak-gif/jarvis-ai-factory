@@ -1,4 +1,4 @@
-import { createStorageAdapter } from "../../../../research/storage.js";
+import { createStorageAdapter } from "../../../research/storage.js";
 
 export const runtime = "nodejs";
 

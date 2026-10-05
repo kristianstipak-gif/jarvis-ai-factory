@@ -1,4 +1,4 @@
-import { isLikelyPumpFunMint } from "../../../research/mint-intelligence.js";
+import { isLikelyPumpFunMint } from "../../../../research/mint-intelligence.js";
 
 export const runtime = "nodejs";
 

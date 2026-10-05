@@ -1,3 +1,5 @@
+import { isLikelyPumpFunMint } from "../../../research/mint-intelligence.js";
+
 export const runtime = "nodejs";
 
 const RPC = "https://api.mainnet-beta.solana.com";
@@ -70,6 +72,10 @@ export async function GET(request, { params }) {
     return Response.json({
       mint: address,
       source: "Solana mainnet RPC",
+      protocol: {
+        likelyPumpFun: isLikelyPumpFunMint(mintInfo || {}),
+        pumpFunDetection: "mint authority match",
+      },
       mintAccount: {
         mintAuthority: mintInfo?.mintAuthority || null,
         freezeAuthority: mintInfo?.freezeAuthority || null,
@@ -84,6 +90,7 @@ export async function GET(request, { params }) {
       limitations: [
         "Only the 20 largest token accounts are sampled.",
         "Owner concentration is not proof of common control.",
+        "Pump.fun identification is based on the known Pump.fun mint authority; transaction-level program verification is a future hardening step.",
         "Funding-source and transaction-history clustering require additional historical RPC/indexer data.",
       ],
       updatedAt: new Date().toISOString(),

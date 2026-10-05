@@ -8,7 +8,7 @@ export function buildCandidateIntelligence(candidate = {}) {
   const onchain = candidate.enrichment?.onchain || candidate.onchain || {};
   const wallet = candidate.enrichment?.wallet || candidate.wallet || {};
   const creator = candidate.enrichment?.creator || candidate.creator || {};
-  const mint = candidate.enrichment?.mint || candidate.mint || {};
+  const mint = candidate.enrichment?.mint || candidate.enrichment?.onchain?.mintAccount || candidate.mint || {};
 
   return {
     ...candidate,

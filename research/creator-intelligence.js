@@ -33,8 +33,10 @@ export function buildCreatorSignals({
 
 export function creatorRiskPenalty(signals = {}) {
   let penalty = 0;
-  if (signals.mintAuthorityActive) penalty += 10;
-  if (signals.freezeAuthorityActive) penalty += 10;
+  const mintAuthorityActive = Boolean(signals.mintAuthorityActive || signals.mintAuthority);
+  const freezeAuthorityActive = Boolean(signals.freezeAuthorityActive || signals.freezeAuthority);
+  if (mintAuthorityActive) penalty += 10;
+  if (freezeAuthorityActive) penalty += 10;
   if (signals.signals?.highFailedRate) penalty += 5;
   return penalty;
 }

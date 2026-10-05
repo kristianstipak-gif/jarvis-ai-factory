@@ -1,8 +1,6 @@
 export const runtime = "nodejs";
 
 const RPC = "https://api.mainnet-beta.solana.com";
-const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
-
 async function rpc(method, params) {
   const response = await fetch(RPC, {
     method: "POST",
@@ -21,9 +19,10 @@ export async function GET(request, { params }) {
   if (!address) return Response.json({ error: "Missing token address" }, { status: 400 });
 
   try {
-    const [largest, supply] = await Promise.all([
+    const [largest, supply, mintAccount] = await Promise.all([
       rpc("getTokenLargestAccounts", [address, { commitment: "confirmed" }]),
       rpc("getTokenSupply", [address, { commitment: "confirmed" }]),
+      rpc("getAccountInfo", [address, { encoding: "jsonParsed", commitment: "confirmed" }]),
     ]);
 
     const holders = largest?.value || [];
@@ -65,9 +64,16 @@ export async function GET(request, { params }) {
       }))
       .sort((a, b) => b.amount - a.amount);
 
+    const mintInfo = mintAccount?.value?.data?.parsed?.info || null;
+
     return Response.json({
       mint: address,
       source: "Solana mainnet RPC",
+      mintAccount: {
+        mintAuthority: mintInfo?.mintAuthority || null,
+        freezeAuthority: mintInfo?.freezeAuthority || null,
+        decimals: Number.isFinite(mintInfo?.decimals) ? mintInfo.decimals : null,
+      },
       supply: supply?.value || null,
       top10ShareOfTotalSupply: totalSupply ? top10 / totalSupply : null,
       sampledTokenAccounts: enriched.length,

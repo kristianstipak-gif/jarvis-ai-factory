@@ -12,21 +12,36 @@ export async function enrichCandidate(candidate, fetchToken, fetchWallet) {
   const mint = candidate?.snapshot?.mint;
   if (!mint) return { ...candidate, enrichment: { status: "invalid-mint" } };
 
-  const [onchainResult, walletResult] = await Promise.allSettled([
-    fetchToken(mint),
-    fetchWallet(mint),
-  ]);
+  let onchain = null;
+  let wallet = null;
+  const errors = [];
+
+  try {
+    onchain = await fetchToken(mint);
+  } catch {
+    errors.push("onchain");
+  }
+
+  // The mint address is not a wallet. Analyze the largest observed owner instead.
+  const owner = onchain?.ownerRank?.[0]?.owner || null;
+  if (owner) {
+    try {
+      wallet = await fetchWallet(owner);
+    } catch {
+      errors.push("wallet");
+    }
+  } else {
+    errors.push("wallet-owner-unavailable");
+  }
 
   return {
     ...candidate,
     enrichment: {
-      status: "complete",
-      onchain: onchainResult.status === "fulfilled" ? onchainResult.value : null,
-      wallet: walletResult.status === "fulfilled" ? walletResult.value : null,
-      errors: [
-        ...(onchainResult.status === "rejected" ? ["onchain"] : []),
-        ...(walletResult.status === "rejected" ? ["wallet"] : []),
-      ],
+      status: errors.length ? "partial" : "complete",
+      onchain,
+      wallet,
+      walletAddress: owner,
+      errors,
     },
   };
 }

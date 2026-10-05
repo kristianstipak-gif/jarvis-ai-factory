@@ -18,8 +18,8 @@ export function riskExplain({
   if (risk.flags?.failedTxRate) negatives.push("elevated failed transaction rate");
   if (risk.flags?.synchronizedCluster) negatives.push("synchronized wallet activity signal");
   if (risk.flags?.creatorLinkedShare) negatives.push("creator-linked concentration signal");
-  if (creator.mintAuthorityActive) negatives.push("mint authority is active");
-  if (creator.freezeAuthorityActive) negatives.push("freeze authority is active");
+  if (creator.mintAuthorityActive || mint.mintAuthority) negatives.push("mint authority is active");
+  if (creator.freezeAuthorityActive || mint.freezeAuthority) negatives.push("freeze authority is active");
 
   return {
     score: Number.isFinite(Number(score)) ? Number(score) : null,

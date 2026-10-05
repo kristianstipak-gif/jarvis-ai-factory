@@ -6,7 +6,9 @@ export async function GET(request) {
   const secret = process.env.CRON_SECRET;
   const authorization = request.headers.get("authorization");
 
-  if (secret && authorization !== "Bearer " + secret) {
+  // Vercel Cron sends its own authorization header when CRON_SECRET is configured.
+  // Never leave this endpoint unauthenticated in production.
+  if (!secret || authorization !== "Bearer " + secret) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -18,6 +20,7 @@ export async function GET(request) {
       ok: true,
       observedAt: result.observedAt,
       candidateCount: result.candidates.length,
+      persistence: result.persistence,
       top: result.candidates.slice(0, 10).map((x) => ({
         mint: x.snapshot.mint,
         pair: x.snapshot.pair,
@@ -25,7 +28,6 @@ export async function GET(request) {
         tier: x.scoring.tier,
         riskCount: x.scoring.risk.riskCount,
       })),
-      note: "Persistence is intentionally storage-adapter based until a durable database/blob store is connected.",
     });
   } catch (error) {
     return Response.json(

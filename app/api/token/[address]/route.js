@@ -2,18 +2,41 @@ import { isLikelyPumpFunMint } from "../../../../research/mint-intelligence.js";
 
 export const runtime = "nodejs";
 
-const RPC = "https://api.mainnet-beta.solana.com";
+const RPCS = [
+  "https://solana-rpc.publicnode.com",
+  "https://api.mainnet-beta.solana.com",
+];
+
 async function rpc(method, params) {
-  const response = await fetch(RPC, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-    cache: "no-store",
-  });
-  if (!response.ok) throw new Error("Solana RPC request failed");
-  const json = await response.json();
-  if (json.error) throw new Error(json.error.message || "Solana RPC error");
-  return json.result;
+  let lastError = null;
+
+  for (const rpcUrl of RPCS) {
+    try {
+      const response = await fetch(rpcUrl, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        lastError = new Error("Solana RPC HTTP " + response.status);
+        continue;
+      }
+
+      const json = await response.json();
+      if (json.error) {
+        lastError = new Error(json.error.message || "Solana RPC error");
+        continue;
+      }
+
+      return json.result;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error("All Solana RPC endpoints failed");
 }
 
 export async function GET(request, { params }) {

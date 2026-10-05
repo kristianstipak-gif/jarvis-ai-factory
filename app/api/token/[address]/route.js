@@ -48,6 +48,7 @@ export async function GET(request, { params }) {
 
     const totalSupply = Number(supply?.value?.uiAmount || 0);
     const top10 = enriched.slice(0, 10).reduce((sum, x) => sum + Number(x.amount || 0), 0);
+    const top20 = enriched.reduce((sum, x) => sum + Number(x.amount || 0), 0);
     const uniqueOwners = new Set(enriched.map((x) => x.owner).filter(Boolean));
 
     const ownerAmounts = new Map();
@@ -60,7 +61,7 @@ export async function GET(request, { params }) {
       .map(([owner, amount]) => ({
         owner,
         amount,
-        shareOfTop20Sample: top10 ? amount / top10 : 0,
+        shareOfTop20Sample: top20 ? amount / top20 : 0,
       }))
       .sort((a, b) => b.amount - a.amount);
 

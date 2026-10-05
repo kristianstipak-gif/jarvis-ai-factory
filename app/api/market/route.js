@@ -2,98 +2,95 @@ export const runtime = "nodejs";
 
 const PROFILE_API = "https://api.dexscreener.com/token-profiles/latest/v1";
 const BOOST_API = "https://api.dexscreener.com/token-boosts/latest/v1";
-const TOP_BOOST_API = "https://api.dexscreener.com/token-boosts/top/v1";
 const TOKEN_API = "https://api.dexscreener.com/latest/dex/tokens/";
 
 const EXCLUDED_SYMBOLS = new Set([
-  "SOL", "WSOL", "USDC", "USDT", "USD1", "DAI", "USDE", "USDS",
-  "BTC", "WBTC", "ETH", "WETH"
+  "SOL", "USDC", "USDT", "USD1", "DAI", "USDS", "USDE", "WETH", "WBTC",
 ]);
 
-async function getJson(url) {
+async function fetchJson(url) {
   const response = await fetch(url, {
     headers: { accept: "application/json" },
-    cache: "no-store",
+    next: { revalidate: 15 },
   });
-  if (!response.ok) throw new Error(`DexScreener request failed: ${response.status}`);
+  if (!response.ok) throw new Error("DexScreener request failed: " + response.status);
   return response.json();
 }
 
-function tokenAddressOf(item) {
-  return item?.tokenAddress || item?.address || null;
+function isCandidate(pair) {
+  const symbol = String(pair?.baseToken?.symbol || "").toUpperCase();
+  return pair?.chainId === "solana" &&
+    pair?.baseToken?.address &&
+    !EXCLUDED_SYMBOLS.has(symbol);
+}
+
+function toToken(pair) {
+  return {
+    name: pair.baseToken?.name || pair.baseToken?.symbol || "Unknown",
+    symbol: pair.baseToken?.symbol || "?",
+    address: pair.baseToken?.address,
+    pair: pair.pairAddress,
+    dex: pair.dexId,
+    priceUsd: Number(pair.priceUsd || 0),
+    liquidityUsd: Number(pair.liquidity?.usd || 0),
+    volume24h: Number(pair.volume?.h24 || 0),
+    txns24h: Number(pair.txns?.h24?.buys || 0) + Number(pair.txns?.h24?.sells || 0),
+    buys24h: Number(pair.txns?.h24?.buys || 0),
+    sells24h: Number(pair.txns?.h24?.sells || 0),
+    priceChange24h: Number(pair.priceChange?.h24 || 0),
+    pairCreatedAt: pair.pairCreatedAt || null,
+    url: pair.url,
+  };
 }
 
 export async function GET() {
   try {
-    const [profiles, boosts, topBoosts] = await Promise.all([
-      getJson(PROFILE_API),
-      getJson(BOOST_API),
-      getJson(TOP_BOOST_API),
+    const [profiles, boosts] = await Promise.all([
+      fetchJson(PROFILE_API),
+      fetchJson(BOOST_API),
     ]);
 
     const addresses = [
-      ...(profiles || []),
-      ...(boosts || []),
-      ...(topBoosts || []),
-    ]
-      .filter((x) => x?.chainId === "solana")
-      .map(tokenAddressOf)
-      .filter(Boolean);
+      ...(profiles || []).filter((x) => x.chainId === "solana").map((x) => x.tokenAddress),
+      ...(boosts || []).filter((x) => x.chainId === "solana").map((x) => x.tokenAddress),
+    ].filter(Boolean);
 
-    const uniqueAddresses = [...new Set(addresses)].slice(0, 90);
+    const uniqueAddresses = [...new Set(addresses)].slice(0, 30);
 
-    const payloads = [];
-    for (let i = 0; i < uniqueAddresses.length; i += 30) {
-      const chunk = uniqueAddresses.slice(i, i + 30);
-      payloads.push(await getJson(TOKEN_API + chunk.join(",")));
-    }
-
-    const seen = new Set();
-    const tokens = payloads
-      .flatMap((p) => p?.pairs || [])
-      .filter((p) => {
-        if (!p?.pairAddress || p.chainId !== "solana" || seen.has(p.pairAddress)) return false;
-        seen.add(p.pairAddress);
-        return true;
+    const tokenPayloads = await Promise.all(
+      uniqueAddresses.map(async (address) => {
+        try {
+          return await fetchJson(TOKEN_API + encodeURIComponent(address));
+        } catch {
+          return { pairs: [] };
+        }
       })
-      .map((p) => ({
-        name: p.baseToken?.name || p.baseToken?.symbol || "Unknown",
-        symbol: p.baseToken?.symbol || "?",
-        address: p.baseToken?.address,
-        pair: p.pairAddress,
-        dex: p.dexId,
-        priceUsd: Number(p.priceUsd || 0),
-        liquidityUsd: Number(p.liquidity?.usd || 0),
-        volume24h: Number(p.volume?.h24 || 0),
-        txns24h: Number(p.txns?.h24?.buys || 0) + Number(p.txns?.h24?.sells || 0),
-        buys24h: Number(p.txns?.h24?.buys || 0),
-        sells24h: Number(p.txns?.h24?.sells || 0),
-        priceChange24h: Number(p.priceChange?.h24 || 0),
-        fdv: Number(p.fdv || 0),
-        marketCap: Number(p.marketCap || 0),
-        pairCreatedAt: p.pairCreatedAt || null,
-        url: p.url,
-      }))
-      .filter((x) =>
-        x.address &&
-        !EXCLUDED_SYMBOLS.has(String(x.symbol).toUpperCase()) &&
-        (x.liquidityUsd > 0 || x.volume24h > 0 || x.txns24h > 0)
-      )
+    );
+
+    const seenPairs = new Set();
+    const pairs = tokenPayloads.flatMap((payload) => payload.pairs || []).filter((pair) => {
+      if (!isCandidate(pair) || seenPairs.has(pair.pairAddress)) return false;
+      seenPairs.add(pair.pairAddress);
+      return true;
+    });
+
+    const tokens = pairs
+      .map(toToken)
+      .filter((token) => token.address)
       .sort((a, b) => {
-        const aPump = a.dex === "pumpfun" ? 1 : 0;
-        const bPump = b.dex === "pumpfun" ? 1 : 0;
-        if (aPump !== bPump) return bPump - aPump;
-        return b.volume24h - a.volume24h;
+        const aActivity = a.volume24h + a.txns24h * 25;
+        const bActivity = b.volume24h + b.txns24h * 25;
+        return bActivity - aActivity;
       })
-      .slice(0, 60);
+      .slice(0, 40);
 
     return Response.json({
       source: "DexScreener token profiles + boosts",
       updatedAt: new Date().toISOString(),
       discovery: {
-        solanaAddresses: uniqueAddresses.length,
-        returnedPairs: tokens.length,
-        excludedMajorAssets: true,
+        profileCount: profiles?.length || 0,
+        boostCount: boosts?.length || 0,
+        addressCount: uniqueAddresses.length,
       },
       tokens,
     });

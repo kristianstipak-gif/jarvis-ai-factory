@@ -1,7 +1,10 @@
 import { buildIntelligenceResult } from "./intelligence-result.js";
 
 export function buildCandidateIntelligence(candidate = {}) {
-  const market = candidate.market || candidate.snapshot || {};
+  const market = {
+    ...(candidate.market || candidate.snapshot || {}),
+    baseScore: candidate.market?.baseScore ?? candidate.scoring?.baseScore ?? candidate.scoring?.score ?? 0,
+  };
   const onchain = candidate.enrichment?.onchain || candidate.onchain || {};
   const wallet = candidate.enrichment?.wallet || candidate.wallet || {};
   const creator = candidate.enrichment?.creator || candidate.creator || {};

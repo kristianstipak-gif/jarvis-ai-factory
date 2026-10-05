@@ -1,15 +1,40 @@
-export function riskAdjustedScore(x){
- const velocity=Math.min(1,(x.volume/x.marketCap)*1.7);
- const age=Math.max(0,1-Math.abs(x.ageMinutes-60)/90);
- const holders=Math.min(1,x.holders/300);
- const distribution=Math.max(0,1-Math.max(0,x.top10Share-.20)*2.5);
- const buy=Math.max(0,Math.min(1,(x.buyRatio-.45)/.35));
- const curve=Math.max(0,Math.min(1,x.curveProgress));
- const social=Math.max(0,Math.min(1,x.socialScore/100));
- let score=100*(.18*velocity+.14*age+.16*holders+.17*distribution+.15*buy+.10*curve+.10*social);
- if(x.velocityOutlier) score-=20;
- if(x.concentrationOutlier) score-=18;
- if(x.sybilRisk) score-=25;
- if(x.washTradeRisk) score-=30;
- return Math.max(0,Math.min(100,score));
+import { buildRiskSignals, intelligenceScore } from "./intelligence-engine.js";
+
+export function marketBaseScore(t = {}) {
+  const liquidity = Number(t.liquidityUsd);
+  const volume = Number(t.volume24h);
+  const txns = Number(t.txns24h);
+  const buys = Number(t.buys24h);
+  const change = Number(t.priceChange24h);
+
+  const velocity = Number.isFinite(liquidity) && liquidity > 0 && Number.isFinite(volume)
+    ? Math.min(1, (volume / liquidity) / 3)
+    : 0;
+  const flow = Number.isFinite(txns) && txns > 0 && Number.isFinite(buys)
+    ? Math.min(1, buys / txns)
+    : 0;
+  const activity = Number.isFinite(txns) ? Math.min(1, txns / 500) : 0;
+  const liq = Number.isFinite(liquidity) ? Math.min(1, liquidity / 100000) : 0;
+  const momentum = Number.isFinite(change) ? Math.max(0, Math.min(1, (change + 20) / 80)) : 0;
+
+  return Math.round(100 * (
+    .30 * velocity +
+    .20 * flow +
+    .20 * activity +
+    .15 * liq +
+    .15 * momentum
+  ));
+}
+
+export function scoreCandidate({ market = {}, onchain = {}, wallet = {} } = {}) {
+  const baseScore = marketBaseScore(market);
+  const risk = buildRiskSignals({ market, onchain, wallet });
+  return {
+    baseScore,
+    risk,
+    score: intelligenceScore(baseScore, risk),
+    tier: intelligenceScore(baseScore, risk) >= 80 ? "A"
+      : intelligenceScore(baseScore, risk) >= 65 ? "B"
+      : intelligenceScore(baseScore, risk) >= 50 ? "C" : "D",
+  };
 }

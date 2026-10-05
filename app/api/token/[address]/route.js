@@ -20,6 +20,16 @@ export async function GET(request, { params }) {
       ? await rpc("getMultipleAccounts", [accounts, { encoding: "jsonParsed", commitment: "confirmed" }])
       : { result: { value: [] }, provider: largestRpc.provider };
 
+    const ownerAddresses = [...new Set(
+      holders.map((_, index) => accountRpc.result?.value?.[index]?.data?.parsed?.info?.owner).filter(Boolean)
+    )];
+    const ownerRpc = ownerAddresses.length
+      ? await rpc("getMultipleAccounts", [ownerAddresses, { encoding: "jsonParsed", commitment: "confirmed" }])
+      : { result: { value: [] }, provider: accountRpc.provider };
+    const ownerMeta = new Map(
+      ownerAddresses.map((owner, index) => [owner, ownerRpc.result?.value?.[index] || null])
+    );
+
     const enriched = holders.map((account, index) => {
       const parsed = accountRpc.result?.value?.[index]?.data?.parsed?.info;
       return {
@@ -28,7 +38,12 @@ export async function GET(request, { params }) {
         decimals: account.decimals,
         owner: parsed?.owner || null,
         state: parsed?.state || null,
-        ownerClass: classifySolanaAccount({ owner: parsed?.owner, tokenAccount: true }),
+        accountOwnerProgram: ownerMeta.get(parsed?.owner)?.owner || null,
+        ownerExecutable: Boolean(ownerMeta.get(parsed?.owner)?.executable),
+        ownerClass: classifySolanaAccount({
+          owner: ownerMeta.get(parsed?.owner)?.owner,
+          executable: Boolean(ownerMeta.get(parsed?.owner)?.executable),
+        }),
       };
     });
 
@@ -69,7 +84,7 @@ export async function GET(request, { params }) {
         walletLikeOwners: enriched.filter((x) => x.ownerClass === "wallet").length,
         programOwners: enriched.filter((x) => x.ownerClass === "program" || x.ownerClass.endsWith("-program")).length,
         tokenProgramOwners: enriched.filter((x) => x.ownerClass === "token-program").length,
-        note: "Classification is heuristic from account-owner program IDs; it is not proof of economic control or liquidity-pool status.",
+        note: "Classification uses the owner account's executable flag and program owner. It is still not proof of economic control or liquidity-pool status.",
       },
       limitations: [
         "Only the 20 largest token accounts are sampled.",

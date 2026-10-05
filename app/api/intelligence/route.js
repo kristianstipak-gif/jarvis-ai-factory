@@ -1,7 +1,6 @@
 export const runtime = "nodejs";
 
 const RPC = "https://api.mainnet-beta.solana.com";
-const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 
 async function rpc(method, params) {
   const response = await fetch(RPC, {
@@ -17,42 +16,62 @@ async function rpc(method, params) {
 }
 
 export async function GET(request) {
-  const url = new URL(request.url);
-  const mint = url.searchParams.get("mint");
+  const mint = new URL(request.url).searchParams.get("mint");
   if (!mint) return Response.json({ error: "mint query parameter is required" }, { status: 400 });
 
   try {
-    const largest = await rpc("getTokenLargestAccounts", [mint, { commitment: "confirmed" }]);
+    const [largest, supply] = await Promise.all([
+      rpc("getTokenLargestAccounts", [mint, { commitment: "confirmed" }]),
+      rpc("getTokenSupply", [mint, { commitment: "confirmed" }]),
+    ]);
+
     const accounts = largest?.value || [];
+    const accountInfo = accounts.length
+      ? await rpc("getMultipleAccounts", [
+          accounts.map((x) => x.address),
+          { encoding: "jsonParsed", commitment: "confirmed" },
+        ])
+      : { value: [] };
 
-    const ownerResults = await Promise.all(
-      accounts.map(async (account) => {
-        try {
-          const result = await rpc("getTokenAccountBalance", [account.address, { commitment: "confirmed" }]);
-          return { ...account, balanceCheck: result?.value || null };
-        } catch {
-          return { ...account, balanceCheck: null };
-        }
-      })
-    );
+    const enriched = accounts.map((account, index) => {
+      const parsed = accountInfo?.value?.[index]?.data?.parsed?.info;
+      return {
+        tokenAccount: account.address,
+        amount: account.uiAmount,
+        decimals: account.decimals,
+        owner: parsed?.owner || null,
+        state: parsed?.state || null,
+      };
+    });
 
-    const supply = await rpc("getTokenSupply", [mint, { commitment: "confirmed" }]);
-    const supplyAmount = Number(supply?.value?.uiAmount || 0);
-    const top10 = ownerResults.slice(0, 10).reduce((sum, x) => sum + Number(x.uiAmount || 0), 0);
+    const totalSupply = Number(supply?.value?.uiAmount || 0);
+    const top10 = enriched.slice(0, 10).reduce((sum, x) => sum + Number(x.amount || 0), 0);
+    const uniqueOwners = new Set(enriched.map((x) => x.owner).filter(Boolean));
+    const ownerAmounts = new Map();
+
+    for (const row of enriched) {
+      if (!row.owner) continue;
+      ownerAmounts.set(row.owner, (ownerAmounts.get(row.owner) || 0) + Number(row.amount || 0));
+    }
+
+    const ownerRank = [...ownerAmounts.entries()]
+      .map(([owner, amount]) => ({ owner, amount, shareOfTop20: top10 ? amount / top10 : 0 }))
+      .sort((a, b) => b.amount - a.amount);
 
     return Response.json({
       mint,
       source: "Solana mainnet RPC",
-      sampleAccounts: ownerResults.length,
       supply: supply?.value || null,
-      top10ShareOfTotalSupply: supplyAmount ? top10 / supplyAmount : null,
-      accounts: ownerResults,
+      top10ShareOfTotalSupply: totalSupply ? top10 / totalSupply : null,
+      sampledTokenAccounts: enriched.length,
+      uniqueOwnersInTop20: uniqueOwners.size,
+      ownerRank,
+      accounts: enriched,
       limitations: [
-        "This endpoint analyzes token accounts, not unique economic owners.",
-        "A single owner can control multiple token accounts.",
-        "Program, liquidity and treasury accounts require separate classification.",
+        "Owner resolution covers the sampled top token accounts only.",
+        "Funding-source and behavioral clustering require transaction-history analysis.",
+        "Program, liquidity and treasury accounts need classification before interpreting concentration as economic ownership.",
       ],
-      next: "Owner-resolution and transaction-cluster analysis should be layered on historical snapshots rather than inferred from one observation.",
       updatedAt: new Date().toISOString(),
     });
   } catch (error) {

@@ -2,37 +2,58 @@ import { isLikelyPumpFunMint } from "../../../../research/mint-intelligence.js";
 
 export const runtime = "nodejs";
 
-const RPCS = [
+const DEFAULT_RPCS = [
   "https://solana-rpc.publicnode.com",
   "https://api.mainnet-beta.solana.com",
 ];
+
+const RPCS = [
+  process.env.SOLANA_RPC_URL,
+  process.env.SOLANA_RPC_URL_2,
+  ...DEFAULT_RPCS,
+].filter(Boolean);
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function rpc(method, params) {
   let lastError = null;
 
   for (const rpcUrl of RPCS) {
-    try {
-      const response = await fetch(rpcUrl, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-        cache: "no-store",
-      });
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const response = await fetch(rpcUrl, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+          cache: "no-store",
+        });
 
-      if (!response.ok) {
-        lastError = new Error("Solana RPC HTTP " + response.status);
-        continue;
+        if (response.status === 429 || response.status === 503) {
+          const retryAfter = Number(response.headers.get("retry-after"));
+          const delay = Number.isFinite(retryAfter)
+            ? Math.min(retryAfter * 1000, 10000)
+            : Math.min(750 * 2 ** attempt, 5000);
+          lastError = new Error("Solana RPC HTTP " + response.status);
+          await sleep(delay);
+          continue;
+        }
+
+        if (!response.ok) {
+          lastError = new Error("Solana RPC HTTP " + response.status);
+          break;
+        }
+
+        const json = await response.json();
+        if (json.error) {
+          lastError = new Error(json.error.message || "Solana RPC error");
+          break;
+        }
+
+        return json.result;
+      } catch (error) {
+        lastError = error;
+        await sleep(Math.min(500 * 2 ** attempt, 3000));
       }
-
-      const json = await response.json();
-      if (json.error) {
-        lastError = new Error(json.error.message || "Solana RPC error");
-        continue;
-      }
-
-      return json.result;
-    } catch (error) {
-      lastError = error;
     }
   }
 
@@ -44,10 +65,11 @@ export async function GET(request, { params }) {
   if (!address) return Response.json({ error: "Missing token address" }, { status: 400 });
 
   try {
-    const [largest, supply, mintAccount] = await Promise.all([
-      rpc("getTokenLargestAccounts", [address, { commitment: "confirmed" }]),
-      rpc("getTokenSupply", [address, { commitment: "confirmed" }]),
-      rpc("getAccountInfo", [address, { encoding: "jsonParsed", commitment: "confirmed" }]),
+    const largest = await rpc("getTokenLargestAccounts", [address, { commitment: "confirmed" }]);
+    const supply = await rpc("getTokenSupply", [address, { commitment: "confirmed" }]);
+    const mintAccount = await rpc("getAccountInfo", [
+      address,
+      { encoding: "jsonParsed", commitment: "confirmed" },
     ]);
 
     const holders = largest?.value || [];
@@ -94,7 +116,8 @@ export async function GET(request, { params }) {
 
     return Response.json({
       mint: address,
-      source: "Solana mainnet RPC",
+      source: "Solana mainnet RPC with failover",
+      rpcProviderConfigured: Boolean(process.env.SOLANA_RPC_URL),
       protocol: {
         likelyPumpFun: isLikelyPumpFunMint(mintInfo || {}),
         pumpFunDetection: "mint authority match",
@@ -120,7 +143,11 @@ export async function GET(request, { params }) {
     });
   } catch (error) {
     return Response.json(
-      { error: "Token analysis unavailable", detail: String(error) },
+      {
+        error: "Token analysis unavailable",
+        detail: String(error),
+        rpcProvidersTried: RPCS.length,
+      },
       { status: 502 }
     );
   }

@@ -21,7 +21,7 @@ export function createMemoryStore() {
         const t = Date.parse(since);
         if (Number.isFinite(t)) result = result.filter((x) => Date.parse(x.observedAt) >= t);
       }
-      return result.sort((a,b) => Date.parse(a.observedAt)-Date.parse(b.observedAt)).slice(-limit);
+      return result.sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt)).slice(-limit);
     },
     async count() { return rows.length; },
     async clear() { rows.length = 0; },
@@ -63,8 +63,11 @@ export function createSupabaseStore(client = env()) {
 }
 
 export function createStorageAdapter({ durableStore = null } = {}) {
-  const configured = durableStore || (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY ? createSupabaseStore() : null);
+  const hasUrl = Boolean(process.env.SUPABASE_URL);
+  const hasServerKey = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY);
+  const configured = durableStore || (hasUrl && hasServerKey ? createSupabaseStore() : null);
   const fallback = createMemoryStore();
+
   return {
     append: (rows) => (configured ? configured.append(rows) : fallback.append(rows)),
     read: (options) => (configured ? configured.read(options) : fallback.read(options)),

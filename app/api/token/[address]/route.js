@@ -1,4 +1,4 @@
-import { isLikelyPumpFunMint } from "../../../../research/mint-intelligence.js";
+import { classifySolanaAccount, isLikelyPumpFunMint } from "../../../../research/mint-intelligence.js";
 import { getRpcUrls, rpc } from "../../../../lib/solana-rpc.js";
 
 export const runtime = "nodejs";
@@ -28,6 +28,7 @@ export async function GET(request, { params }) {
         decimals: account.decimals,
         owner: parsed?.owner || null,
         state: parsed?.state || null,
+        ownerClass: classifySolanaAccount({ owner: parsed?.owner, tokenAccount: true }),
       };
     });
 
@@ -64,6 +65,12 @@ export async function GET(request, { params }) {
       uniqueOwnersInTop20: uniqueOwners.size,
       ownerRank,
       accounts: enriched,
+      classification: {
+        walletLikeOwners: enriched.filter((x) => x.ownerClass === "wallet").length,
+        programOwners: enriched.filter((x) => x.ownerClass === "program" || x.ownerClass.endsWith("-program")).length,
+        tokenProgramOwners: enriched.filter((x) => x.ownerClass === "token-program").length,
+        note: "Classification is heuristic from account-owner program IDs; it is not proof of economic control or liquidity-pool status.",
+      },
       limitations: [
         "Only the 20 largest token accounts are sampled.",
         "Owner concentration is not proof of common control.",

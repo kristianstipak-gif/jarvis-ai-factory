@@ -8,7 +8,12 @@ export function buildIntelligenceResult({ market = {}, onchain = {}, wallet = {}
   const risk = buildRiskSignals({ market, onchain, wallet });
 
   const rulePenalty = riskPenalty(risk.flags);
-  const creatorPenalty = creatorRiskPenalty(creator);
+  const creatorSignals = {
+    ...creator,
+    mintAuthority: creator.mintAuthority ?? mint.mintAuthority ?? null,
+    freezeAuthority: creator.freezeAuthority ?? mint.freezeAuthority ?? null,
+  };
+  const creatorPenalty = creatorRiskPenalty(creatorSignals);
 
   const score = Math.max(
     0,

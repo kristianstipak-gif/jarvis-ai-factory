@@ -4,6 +4,8 @@ export const runtime = "nodejs";
 
 const DEFAULT_RPCS = [
   "https://solana-rpc.publicnode.com",
+  "https://solana.drpc.org",
+  "https://rpc.ankr.com/solana",
   "https://api.mainnet-beta.solana.com",
 ];
 

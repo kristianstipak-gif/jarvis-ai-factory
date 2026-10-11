@@ -1,0 +1,25 @@
+name: JARVIS research tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  research-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test momentum filter and cost model
+        run: node --experimental-default-type=module research/strategy-lab.test.js
+      - name: Test snapshot backtest
+        run: node --experimental-default-type=module research/backtest.test.js

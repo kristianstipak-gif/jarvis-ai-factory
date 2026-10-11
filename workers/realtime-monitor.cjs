@@ -22,6 +22,7 @@ const state = {
 let previous = new Map();
 let pending = new Map();
 let running = false;
+let pendingSignal = false;
 
 function getKey(token) { return String(token.pair || token.address || token.mint || ""); }
 function meaningfulChanges(tokens, oldMap, thresholdPct = CHANGE_THRESHOLD_PCT) {
@@ -74,29 +75,24 @@ async function cycle() {
     state.lastChangedCount = changes.length;
     const hadBaseline = previous.size > 0;
     remember(tokens);
-    for (const change of changes) pending.set(change.key, change);
-    state.pendingSignals = pending.size;
     state.lastError = null;
-
-    // First poll establishes a baseline. Signals remain pending until a paper cycle succeeds.
+    // Establish a baseline on startup; do not treat every initial token as a signal.
+    if (hadBaseline && changes.length > 0) pendingSignal = true;
     const now = Date.now();
-    if (hadBaseline && pending.size > 0 &&
+    if (pendingSignal &&
         (!state.lastActionAt || now - Date.parse(state.lastActionAt) >= MIN_ACTION_GAP_MS)) {
-      // The paper-trader endpoint already collects and persists its own market snapshot.
-      // Calling the collector separately would duplicate snapshots.
+      // The paper-trader endpoint already collects and persists snapshots; avoid a duplicate collector call.
       const paper = await requestJson("/api/cron/paper-trader", {
         headers: { authorization: "Bearer " + SECRET }
       });
       state.lastActionAt = new Date().toISOString();
       state.triggeredCycles += 1;
-      const signalled = pending.size;
-      pending.clear();
-      state.pendingSignals = 0;
+      pendingSignal = false;
       console.log(JSON.stringify({
         event: "market-change-cycle", at: state.lastActionAt,
-        signalledPairs: signalled, paperMode: paper.mode || "paper-only",
-        newPositions: paper.ledger?.openedThisRun || 0,
-        executionEnabled: paper.execution?.enabled === true
+        changedCount: changes.length, examples: changes.slice(0, 5),
+        paperMode: paper.mode || "paper-only",
+        newPositions: paper.ledger?.openedThisRun || 0
       }));
     }
   } catch (error) {

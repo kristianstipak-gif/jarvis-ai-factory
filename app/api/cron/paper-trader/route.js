@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { evaluateAutoTradeCandidate } from "../../../../research/auto-trader.js";
-import { evaluatePaperExit, netReturnPct, paperPositionSize } from "../../../../research/paper-trading.js";
+import { evaluatePaperExit, netReturnPct, paperPositionSize, researchGatePassed } from "../../../../research/paper-trading.js";
+import { createStorageAdapter } from "../../../../research/storage.js";
+import { runWalkForwardLab } from "../../../../research/walk-forward-lab.js";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -75,6 +77,16 @@ export async function GET(request) {
     const recent=recentResult.data||[], closed24h=closed24hResult.data||[], today=todayResult.data||[];
     // Always fetch marks for held tokens, even if they disappear from the promoted-token feed.
     const tokens=await getTokens(open.map(p=>p.mint));
+    const store=createStorageAdapter();
+    if(!store.durable) throw new Error("Durable Supabase storage is required; refusing ephemeral paper-trade ledger.");
+    const observedAt=now.toISOString();
+    const collection=await store.append(tokens.map(t=>({
+      mint:t.mint,pair:t.pair,observedAt,priceUsd:t.priceUsd,liquidityUsd:t.liquidityUsd,
+      volume24h:t.volume24h,txns24h:t.txns24h,buys24h:t.buys24h,sells24h:t.sells24h
+    })));
+    const snapshots=await store.read({limit:2000});
+    const research=runWalkForwardLab(snapshots);
+    const allowNewEntries=researchGatePassed(research);
     const realizedAll=closed.reduce((s,x)=>s+Number(x.pnl_usd||0),0);
     const realized24h=closed24h.reduce((s,x)=>s+Number(x.pnl_usd||0),0);
     const unrealized=open.reduce((s,p)=>{
@@ -102,7 +114,7 @@ export async function GET(request) {
     const refreshedResult=await db.from("paper_positions").select("*").eq("status","open");
     if(refreshedResult.error) throw new Error(refreshedResult.error.message);
     const refreshedOpen=refreshedResult.data||[], opened=[];
-    const ranked=tokens.map(t=>({...t,...evaluateAutoTradeCandidate(t,{
+    const ranked=(allowNewEntries ? tokens : []).map(t=>({...t,...evaluateAutoTradeCandidate(t,{
       equityUsd:equity,openPositions:refreshedOpen.length,tradesLastHour:recent.length,
       dailyLossPct
     })})).filter(x=>x.decision==="PAPER_BUY_CANDIDATE")
@@ -127,7 +139,8 @@ export async function GET(request) {
     }
     return Response.json({
       ok:true,mode:"paper-only",observedAt:now.toISOString(),
-      market:{tokensScanned:tokens.length},
+      market:{tokensScanned:tokens.length,snapshotsStored:collection.added,historyCount:snapshots.length},
+      researchGate:{allowNewEntries,verdict:research.verdict,trainTrades:research.train?.trades||0,testTrades:research.test?.trades||0,testMeanNetPct:research.test?.meanNetPct??null,holdoutPassed:research.selection?.holdoutPassed??false},
       ledger:{openPositions:refreshedOpen.length+opened.length,closedThisRun:closedDetails.length,
         openedThisRun:opened.length,closedDetails,opened},
       risk:{paperEquityUsd:equity,realizedPnlAllTimeUsd:realizedAll,realizedPnlLast24hUsd:realized24h,

@@ -27,3 +27,5 @@ jobs:
         run: node --experimental-default-type=module research/auto-trader.test.js
       - name: Test walk-forward lab (paper-only)
         run: node --experimental-default-type=module research/walk-forward-lab.test.js
+      - name: Test paper trading lifecycle (paper-only)
+        run: node --experimental-default-type=module research/paper-trading.test.js

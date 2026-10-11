@@ -15,12 +15,22 @@ async function fetchJson(url) {
   if (!response.ok) throw new Error("DexScreener HTTP " + response.status);
   try { return JSON.parse(body); } catch { throw new Error("DexScreener returned non-JSON"); }
 }
-async function getTokens() {
+async function toToken(p) {
+  return {
+    mint:p.baseToken.address,pair:p.pairAddress,name:p.baseToken.name||p.baseToken.symbol||"Unknown",
+    symbol:p.baseToken.symbol||"?",url:p.url,priceUsd:Number(p.priceUsd||0),
+    liquidityUsd:Number(p.liquidity?.usd||0),volume24h:Number(p.volume?.h24||0),
+    buys24h:Number(p.txns?.h24?.buys||0),sells24h:Number(p.txns?.h24?.sells||0),
+    txns24h:Number(p.txns?.h24?.buys||0)+Number(p.txns?.h24?.sells||0),
+    priceChange24h:Number(p.priceChange?.h24||0)
+  };
+}
+async function getTokens(extraAddresses = []) {
   const [profiles, boosts] = await Promise.all([fetchJson(PROFILE_API), fetchJson(BOOST_API)]);
   const addresses = [...new Set([
     ...(Array.isArray(profiles) ? profiles : []).filter(x=>x.chainId==="solana").map(x=>x.tokenAddress),
     ...(Array.isArray(boosts) ? boosts : []).filter(x=>x.chainId==="solana").map(x=>x.tokenAddress)
-  ].filter(Boolean))].slice(0,30);
+  ].concat(extraAddresses).filter(Boolean))].slice(0,100);
   const pairs = addresses.length ? await fetchJson(TOKENS_API+addresses.map(encodeURIComponent).join(",")) : [];
   const seen = new Set();
   return (Array.isArray(pairs) ? pairs : []).filter(p=>{
@@ -34,7 +44,7 @@ async function getTokens() {
     buys24h:Number(p.txns?.h24?.buys||0),sells24h:Number(p.txns?.h24?.sells||0),
     txns24h:Number(p.txns?.h24?.buys||0)+Number(p.txns?.h24?.sells||0),
     priceChange24h:Number(p.priceChange?.h24||0)
-  })).filter(t=>t.priceUsd>0);
+  }).map(toToken).filter(t=>t.priceUsd>0);
 }
 export async function GET(request) {
   const expected=process.env.CRON_SECRET;
@@ -120,7 +130,7 @@ export async function GET(request) {
       market:{tokensScanned:tokens.length},
       ledger:{openPositions:refreshedOpen.length+opened.length,closedThisRun:closedIds.length,openedThisRun:opened.length,
         closedDetails,opened},
-      risk:{paperEquityUsd:equity,realizedPnlLast24hUsd:realizedAll,dailyLossPct,
+      risk:{paperEquityUsd:equity,realizedPnlAllTimeUsd:realizedAll,realizedPnlLast24hUsd:realized24h,dailyLossPct,
         maxOpenPositions:3,maxTradesPerHour:6,maxDailyLossPct:2,positionPct:1},
       execution:{enabled:false,walletConnected:false,realOrdersSubmitted:0},
       limitations:["Runs only when the scheduled workflow invokes it; current schedule is every 5 minutes, not every second.",

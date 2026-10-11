@@ -23,3 +23,5 @@ jobs:
         run: node --experimental-default-type=module research/strategy-lab.test.js
       - name: Test snapshot backtest
         run: node --experimental-default-type=module research/backtest.test.js
+      - name: Test auto-trader risk engine (paper-only)
+        run: node --experimental-default-type=module research/auto-trader.test.js

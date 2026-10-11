@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "monitor": "node workers/realtime-monitor.cjs",
+    "test:monitor": "node workers/realtime-monitor.test.cjs"
   },
   "dependencies": {
     "next": "latest",

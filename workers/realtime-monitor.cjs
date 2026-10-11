@@ -16,9 +16,11 @@ const state = {
   triggeredCycles: 0,
   lastTokenCount: 0,
   lastChangedCount: 0,
+  pendingSignals: 0,
   mode: "polling-paper-only"
 };
 let previous = new Map();
+let pending = new Map();
 let running = false;
 
 function getKey(token) { return String(token.pair || token.address || token.mint || ""); }
@@ -72,25 +74,29 @@ async function cycle() {
     state.lastChangedCount = changes.length;
     const hadBaseline = previous.size > 0;
     remember(tokens);
+    for (const change of changes) pending.set(change.key, change);
+    state.pendingSignals = pending.size;
     state.lastError = null;
-    // Establish a baseline on startup; do not treat every initial token as a signal.
+
+    // First poll establishes a baseline. Signals remain pending until a paper cycle succeeds.
     const now = Date.now();
-    if (hadBaseline && changes.length > 0 &&
+    if (hadBaseline && pending.size > 0 &&
         (!state.lastActionAt || now - Date.parse(state.lastActionAt) >= MIN_ACTION_GAP_MS)) {
-      const collected = await requestJson("/api/cron/collector", {
-        headers: { authorization: "Bearer " + SECRET }
-      });
-      // This endpoint remains paper-only and fails closed if durable storage is unavailable.
+      // The paper-trader endpoint already collects and persists its own market snapshot.
+      // Calling the collector separately would duplicate snapshots.
       const paper = await requestJson("/api/cron/paper-trader", {
         headers: { authorization: "Bearer " + SECRET }
       });
       state.lastActionAt = new Date().toISOString();
       state.triggeredCycles += 1;
+      const signalled = pending.size;
+      pending.clear();
+      state.pendingSignals = 0;
       console.log(JSON.stringify({
         event: "market-change-cycle", at: state.lastActionAt,
-        changedCount: changes.length, examples: changes.slice(0, 5),
-        collectorOk: collected.ok, paperMode: paper.mode || "paper-only",
-        newPositions: paper.opened?.length || 0
+        signalledPairs: signalled, paperMode: paper.mode || "paper-only",
+        newPositions: paper.ledger?.openedThisRun || 0,
+        executionEnabled: paper.execution?.enabled === true
       }));
     }
   } catch (error) {
@@ -102,30 +108,30 @@ async function cycle() {
 }
 
 function startServer() {
-if (!SECRET) {
-  console.error("Missing CRON_SECRET. Refusing to start without authenticated collector access.");
-  process.exit(1);
-}
-const server = http.createServer((req, res) => {
-  if (req.url === "/healthz") {
-    res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
-    res.end(JSON.stringify({
-      ok: true, ...state, pollIntervalMs: POLL_MS,
-      minActionGapMs: MIN_ACTION_GAP_MS, changeThresholdPct: CHANGE_THRESHOLD_PCT,
-      previousPairsTracked: previous.size, strategyExecution: "paper-only"
-    }));
-    return;
+  if (!SECRET) {
+    console.error("Missing CRON_SECRET. Refusing to start without authenticated paper-trader access.");
+    process.exit(1);
   }
-  res.writeHead(404, { "content-type": "application/json" });
-  res.end(JSON.stringify({ error: "not_found" }));
-});
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(JSON.stringify({ event: "worker-started", port: PORT, pollIntervalMs: POLL_MS, mode: state.mode }));
-  void cycle();
-  setInterval(() => void cycle(), POLL_MS);
-});
-process.on("SIGTERM", () => server.close(() => process.exit(0)));
-process.on("SIGINT", () => server.close(() => process.exit(0)));
+  const server = http.createServer((req, res) => {
+    if (req.url === "/healthz") {
+      res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
+      res.end(JSON.stringify({
+        ok: true, ...state, pollIntervalMs: POLL_MS,
+        minActionGapMs: MIN_ACTION_GAP_MS, changeThresholdPct: CHANGE_THRESHOLD_PCT,
+        previousPairsTracked: previous.size, strategyExecution: "paper-only"
+      }));
+      return;
+    }
+    res.writeHead(404, { "content-type": "application/json" });
+    res.end(JSON.stringify({ error: "not_found" }));
+  });
+  server.listen(PORT, "0.0.0.0", () => {
+    console.log(JSON.stringify({ event: "worker-started", port: PORT, pollIntervalMs: POLL_MS, mode: state.mode }));
+    void cycle();
+    setInterval(() => void cycle(), POLL_MS);
+  });
+  process.on("SIGTERM", () => server.close(() => process.exit(0)));
+  process.on("SIGINT", () => server.close(() => process.exit(0)));
 }
 
 module.exports = { meaningfulChanges, startServer };

@@ -86,7 +86,7 @@ export async function GET() {
       pair: token.pair,
       url: token.url,
       ...evaluateAutoTradeCandidate(token, {
-        equityUsd: Number(process.env.PAPER_EQUITY_USD || 1000),
+        equityUsd: Number(process.env.PAPER_EQUITY_USD || 43.48),
         openPositions: 0,
         tradesLastHour: 0,
         dailyLossPct: 0,
@@ -115,7 +115,7 @@ export async function GET() {
       },
       limitations: [
         "Input is a promoted-token feed with 24-hour aggregates, not a real-time trade-tick feed.",
-        "Portfolio limits are provisional defaults; this endpoint does not maintain open positions or a trade ledger.",
+        "Virtual equity defaults to about 43.48 USD (~1,000 CZK at an illustrative 23 CZK/USD); 20% position sizing is for simulation only. This endpoint does not maintain open positions or a trade ledger.",
         "A candidate is not a buy recommendation and does not establish positive expectancy.",
       ],
     });

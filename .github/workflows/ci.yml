@@ -16,4 +16,5 @@ jobs:
           node-version: 22
       - run: npm install
       - run: node --test research/backtest.test.js
+      - run: npm run test:monitor
       - run: npm run build

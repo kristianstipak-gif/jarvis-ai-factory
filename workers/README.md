@@ -20,3 +20,9 @@ Run locally with `npm run monitor`; test with `npm run test:monitor`. Health end
 
 ## Important limitation
 This is still polling snapshots, not tick-level streaming. It cannot guarantee 1-second market detection or fills. For true sub-second reaction, replace the promoted-token feed with an authorized Solana websocket/transaction stream, decode relevant DEX trades, and validate the strategy in paper mode first. Do not enable live trading until out-of-sample performance and risk controls are independently verified.
+
+
+## CZK-sized paper simulation defaults
+- Default virtual equity is `PAPER_EQUITY_USD=43.48`, approximately 1,000 CZK at an illustrative 23 CZK/USD rate.
+- Paper position sizing defaults to 20% of virtual equity (about 200 CZK per position at that illustrative rate). This is simulation only; the FX conversion is approximate and is not a recommendation for live risk-taking.
+- Override `PAPER_EQUITY_USD` to change the virtual balance. No real money is accessed.

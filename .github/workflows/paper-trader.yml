@@ -1,9 +1,6 @@
 name: JARVIS paper trader
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ["JARVIS market data collector"]
-    types: [completed]
 permissions:
   contents: read
 concurrency:
@@ -11,7 +8,6 @@ concurrency:
   cancel-in-progress: false
 jobs:
   paper-trader:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:

@@ -22,14 +22,7 @@ export async function GET(request) {
       buys24h: token.buys24h,
       sells24h: token.sells24h,
       priceChange24h: token.priceChange24h,
-      ...evaluateMomentumSignal({
-        priceUsd: token.priceUsd,
-        liquidityUsd: token.liquidityUsd,
-        volume5mUsd: token.volume24h,
-        buys5m: token.buys24h,
-        sells5m: token.sells24h,
-        priceChange5mPct: token.priceChange24h
-      }, {
+      ...evaluateMomentumSignal(token, {
         minLiquidityUsd: 10000,
         minVolumeLiquidityRatio: 0.5,
         minBuyRatio: 0.55,

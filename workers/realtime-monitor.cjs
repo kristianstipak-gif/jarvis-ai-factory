@@ -3,7 +3,7 @@ const http = require("node:http");
 const BASE_URL = (process.env.JARVIS_BASE_URL || "https://jarvis-ai-factory.vercel.app").replace(/\/$/, "");
 const SECRET = process.env.CRON_SECRET;
 const POLL_MS = Math.max(5000, Number(process.env.POLL_INTERVAL_MS || 5000));
-const MIN_ACTION_GAP_MS = Math.max(10000, Number(process.env.MIN_ACTION_GAP_MS || 10000));
+const MIN_ACTION_GAP_MS = Math.max(10000, Number(process.env.MIN_ACTION_GAP_MS || 30000));
 const CHANGE_THRESHOLD_PCT = Math.max(0.01, Number(process.env.CHANGE_THRESHOLD_PCT || 0.15));
 const PORT = Number(process.env.PORT || 10000);
 

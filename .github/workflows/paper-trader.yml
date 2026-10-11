@@ -1,8 +1,6 @@
 name: JARVIS paper trader
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "*/5 * * * *"
   workflow_run:
     workflows: ["JARVIS market data collector"]
     types: [completed]

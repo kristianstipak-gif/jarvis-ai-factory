@@ -13,7 +13,7 @@ export const DEFAULT_LAB_CONFIG = Object.freeze({
   minBuyRatioGrid: [0.52, 0.56, 0.60],
   minVolumeLiquidityGrid: [0.25, 0.75],
   minTransactionsGrid: [10, 30],
-  horizonMinutesGrid: [15, 60],
+  horizonMinutesGrid: [1, 5, 15, 60],
 });
 
 const round = (x, n = 4) => Number.isFinite(x) ? Math.round(x * 10 ** n) / 10 ** n : null;

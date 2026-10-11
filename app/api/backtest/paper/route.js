@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 const PROFILE_API = "https://api.dexscreener.com/token-profiles/latest/v1";
 const BOOST_API = "https://api.dexscreener.com/token-boosts/latest/v1";
-const TOKEN_API = "https://api.dexscreener.com/latest/dex/tokens/";
+const TOKEN_API = "https://api.dexscreener.com/tokens/v1/solana/";
 
 async function fetchJson(url) {
   const response = await fetch(url, { headers: { accept: "application/json" }, cache: "no-store" });
@@ -28,7 +28,7 @@ export async function GET() {
       const payload = await fetchJson(TOKEN_API + addresses.map(encodeURIComponent).join(","));
       const excluded = new Set(["SOL","USDC","USDT","USD1","DAI","USDS","USDE","WETH","WBTC"]);
       const seen = new Set();
-      const tokens = (payload.pairs || []).filter(pair => {
+      const tokens = (Array.isArray(payload) ? payload : []).filter(pair => {
         const symbol = String(pair.baseToken?.symbol || "").toUpperCase();
         if (pair.chainId !== "solana" || !pair.baseToken?.address || excluded.has(symbol) || seen.has(pair.pairAddress)) return false;
         seen.add(pair.pairAddress);

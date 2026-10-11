@@ -4,7 +4,7 @@
  * Live execution must be implemented separately with a user-controlled wallet.
  */
 export const DEFAULT_RISK_LIMITS = Object.freeze({
-  maxPositionPct: 1,
+  maxPositionPct: 20,
   maxOpenPositions: 3,
   maxTradesPerHour: 6,
   maxDailyLossPct: 2,

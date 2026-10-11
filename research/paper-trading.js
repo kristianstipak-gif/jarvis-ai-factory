@@ -10,7 +10,7 @@ export const PAPER_DEFAULTS = Object.freeze({
   maxOpenPositions: 3,
   maxTradesPerHour: 6,
   maxDailyLossPct: 2,
-  maxPositionPct: 1,
+  maxPositionPct: 20,
 });
 
 export function evaluatePaperExit(position, markPrice, now = Date.now(), options = {}) {

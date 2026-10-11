@@ -44,12 +44,12 @@ export function createSupabaseStore(client = env()) {
       return { added: rows.length };
     },
     async read({ mint = null, since = null, limit = 5000 } = {}) {
-      let query = client.from("market_snapshots").select("*").order("observed_at", { ascending: true }).limit(limit);
+      let query = client.from("market_snapshots").select("*").order("observed_at", { ascending: false }).limit(limit);
       if (mint) query = query.eq("mint", mint);
       if (since) query = query.gte("observed_at", since);
       const { data, error } = await query;
       if (error) throw new Error("Supabase read failed: " + error.message);
-      return (data || []).map(fromDbRow);
+      return (data || []).reverse().map(fromDbRow);
     },
     async count() {
       const { count, error } = await client.from("market_snapshots").select("*", { count: "exact", head: true });

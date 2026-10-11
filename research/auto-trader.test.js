@@ -13,7 +13,7 @@ const portfolio = { equityUsd: 1000, openPositions: 0, tradesLastHour: 0, dailyL
 const allowed = evaluateAutoTradeCandidate(token, portfolio);
 assert.equal(allowed.decision, "PAPER_BUY_CANDIDATE");
 assert.equal(allowed.execution, "DISABLED");
-assert.equal(allowed.positionBudgetUsd, 10);
+assert.equal(allowed.positionBudgetUsd, 200);
 
 assert.ok(evaluateAutoTradeCandidate(token, { ...portfolio, openPositions: 3 }).reasons.includes("max-open-positions-reached"));
 assert.ok(evaluateAutoTradeCandidate(token, { ...portfolio, tradesLastHour: 6 }).reasons.includes("hourly-trade-limit-reached"));

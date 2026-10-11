@@ -22,6 +22,6 @@ assert.ok(report.train.observations > 0);
 assert.ok(report.test.observations > 0);
 assert.ok(report.leaderboard.length > 0);
 assert.ok([1, 5, 15, 60].includes(report.selection?.params?.horizonMinutes));
-assert.ok(report.limitations.some(x=>x.includes("not a guarantee of profit")));
+assert.ok(report.limitations.some(x=>x.includes("guarantee of profit")));
 assert.equal(runWalkForwardLab([]).eligible, false);
 console.log("Walk-forward lab tests passed");

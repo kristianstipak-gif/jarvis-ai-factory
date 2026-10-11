@@ -17,11 +17,11 @@ for (let minute=0; minute<300; minute+=5) {
 }
 const report = runWalkForwardLab(rows, { minTrainTrades: 2, minTestTrades: 1 });
 assert.equal(report.mode, "walk-forward-research-only");
-assert.equal(report.gridConfigurations, 72);
+assert.equal(report.gridConfigurations, 144);
 assert.ok(report.train.observations > 0);
 assert.ok(report.test.observations > 0);
 assert.ok(report.leaderboard.length > 0);
-assert.equal(report.selection?.params?.horizonMinutes === 15 || report.selection?.params?.horizonMinutes === 60, true);
+assert.ok([1, 5, 15, 60].includes(report.selection?.params?.horizonMinutes));
 assert.ok(report.limitations.some(x=>x.includes("not a guarantee of profit")));
 assert.equal(runWalkForwardLab([]).eligible, false);
 console.log("Walk-forward lab tests passed");

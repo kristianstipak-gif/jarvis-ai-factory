@@ -5,7 +5,7 @@ const rows = [];
 // Generate time-ordered, reproducible data for unit testing only.
 for (let minute=0; minute<300; minute+=5) {
   for (let coin=0; coin<4; coin++) {
-    const trend = minute < 200 ? 1 + minute*0.001 : 1.2 + (minute-200)*0.0001;
+    const trend = minute < 200 ? 1 + minute*0.01 : 1.2 + (minute-200)*0.01;
     rows.push({
       mint: "mint-"+coin, pair: "pair-"+coin,
       observedAt: new Date(Date.UTC(2026,0,1,0,minute)).toISOString(),

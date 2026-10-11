@@ -43,3 +43,13 @@ export function paperPositionSize(equityUsd, options = {}) {
   if (!Number.isFinite(Number(equityUsd)) || Number(equityUsd) <= 0) return 0;
   return Math.round(Number(equityUsd) * cfg.maxPositionPct) / 100;
 }
+
+/** Fail closed: new paper entries require a positive, sufficiently sampled holdout. */
+export function researchGatePassed(report) {
+  return Boolean(report?.selection?.holdoutPassed === true &&
+    Number(report?.test?.trades) >= 5 &&
+    Number.isFinite(Number(report?.test?.meanNetPct)) &&
+    Number(report.test.meanNetPct) > 0 &&
+    Number.isFinite(Number(report?.test?.profitFactor)) &&
+    Number(report.test.profitFactor) > 1);
+}

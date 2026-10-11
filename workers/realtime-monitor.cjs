@@ -106,6 +106,7 @@ async function cycle() {
   }
 }
 
+function startServer() {
 const server = http.createServer((req, res) => {
   if (req.url === "/healthz") {
     res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
@@ -126,3 +127,7 @@ server.listen(PORT, "0.0.0.0", () => {
 });
 process.on("SIGTERM", () => server.close(() => process.exit(0)));
 process.on("SIGINT", () => server.close(() => process.exit(0)));
+}
+
+module.exports = { meaningfulChanges, startServer };
+if (require.main === module) startServer();

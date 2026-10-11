@@ -7,11 +7,6 @@ const MIN_ACTION_GAP_MS = Math.max(10000, Number(process.env.MIN_ACTION_GAP_MS |
 const CHANGE_THRESHOLD_PCT = Math.max(0.01, Number(process.env.CHANGE_THRESHOLD_PCT || 0.15));
 const PORT = Number(process.env.PORT || 10000);
 
-if (!SECRET) {
-  console.error("Missing CRON_SECRET. Refusing to start without authenticated collector access.");
-  process.exit(1);
-}
-
 const state = {
   startedAt: new Date().toISOString(),
   lastPollAt: null,
@@ -107,6 +102,10 @@ async function cycle() {
 }
 
 function startServer() {
+if (!SECRET) {
+  console.error("Missing CRON_SECRET. Refusing to start without authenticated collector access.");
+  process.exit(1);
+}
 const server = http.createServer((req, res) => {
   if (req.url === "/healthz") {
     res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });

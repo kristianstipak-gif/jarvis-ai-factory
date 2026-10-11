@@ -61,7 +61,7 @@ export async function GET(request) {
   const db=createClient(supabaseUrl,serviceKey,{auth:{persistSession:false}});
   try {
     const now=new Date(), nowMs=now.getTime();
-    const baseEquity=Number(process.env.PAPER_EQUITY_USD||1000);
+    const baseEquity=Number(process.env.PAPER_EQUITY_USD||43.48);
     const todayStart=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())).toISOString();
     const [openResult,closedResult,recentResult,closed24hResult,todayResult]=await Promise.all([
       db.from("paper_positions").select("*").eq("status","open"),
@@ -149,9 +149,10 @@ export async function GET(request) {
       ledger:{openPositions:refreshedOpen.length+opened.length,closedThisRun:closedDetails.length,
         openedThisRun:opened.length,closedDetails,opened},
       risk:{paperEquityUsd:equity,realizedPnlAllTimeUsd:realizedAll,realizedPnlLast24hUsd:realized24h,
-        dailyLossPct,maxOpenPositions:3,maxTradesPerHour:6,maxDailyLossPct:2,positionPct:1},
+        dailyLossPct,maxOpenPositions:3,maxTradesPerHour:6,maxDailyLossPct:2,positionPct:20},
       execution:{enabled:false,walletConnected:false,realOrdersSubmitted:0},
       limitations:[
+        "Virtual equity defaults to about 43.48 USD (~1,000 CZK at an illustrative 23 CZK/USD); position size defaults to 20% (~200 CZK). Simulation only; FX is approximate.",
         "Runs only when the scheduled workflow invokes it; current schedule is every 5 minutes, not every second.",
         "Market feed is a promoted-token list with rolling 24-hour aggregates, not tick-level history or order-book depth.",
         "Paper fills are assumed at the observed price; costs are modeled, but MEV, failed fills, token taxes, route impact and priority fees are not fully modeled.",

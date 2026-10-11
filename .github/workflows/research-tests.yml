@@ -29,3 +29,5 @@ jobs:
         run: node --experimental-default-type=module research/walk-forward-lab.test.js
       - name: Test paper trading lifecycle (paper-only)
         run: node --experimental-default-type=module research/paper-trading.test.js
+      - name: Test market history freshness and cadence
+        run: node --experimental-default-type=module research/market-health.test.js

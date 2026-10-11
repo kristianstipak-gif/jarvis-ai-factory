@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createStorageAdapter } from "../../../../research/storage.js";
 import { runWalkForwardLab } from "../../../../research/walk-forward-lab.js";
 import { researchGatePassed } from "../../../../research/paper-trading.js";
+import { summarizeMarketHistory } from "../../../../research/market-health.js";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,12 +25,12 @@ export async function GET() {
     const realizedPnlUsd=pnl.reduce((s,x)=>s+x,0);
     const wins=closed.filter(p=>Number(p.net_return_pct)>0).length;
     const history=await store.read({limit:2000});
+    const marketHealth=summarizeMarketHistory(history,Date.now());
     const research=runWalkForwardLab(history);
     return Response.json({
       ok:true,mode:"paper-only",durableStorage:store.durable,
       observedAt:new Date().toISOString(),
-      marketData:{storedSnapshots:await store.count(),recentSnapshots:history.length,
-        latestSnapshotAt:history.at(-1)?.observedAt||null},
+      marketData:{...marketHealth,totalStoredSnapshots:await store.count(),recentSnapshots:history.length},
       research:{verdict:research.verdict,eligible:research.eligible,
         gridConfigurations:research.gridConfigurations,trainTrades:research.train?.trades||0,
         testTrades:research.test?.trades||0,testMeanNetPct:research.test?.meanNetPct??null,
@@ -44,7 +45,8 @@ export async function GET() {
           pnlUsd:p.pnl_usd===null?null:Number(p.pnl_usd),closeReason:p.close_reason}))},
       execution:{enabled:false,walletConnected:false,realOrdersSubmitted:0},
       limitations:["This endpoint reports simulated positions only; no real wallet or live trades.",
-        "Snapshot collection depends on the scheduled paper-trader workflow running successfully."]
+        "Snapshot collection depends on the scheduled paper-trader workflow running successfully.",
+        ...marketHealth.warnings]
     });
   } catch(error) {
     return Response.json({ok:false,error:"Paper trader status failed",detail:String(error?.message||error)},{status:500});

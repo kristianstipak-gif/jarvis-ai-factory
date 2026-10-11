@@ -1,0 +1,38 @@
+name: JARVIS market data collector
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jarvis-market-collector
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Validate collector secret
+        env:
+          JARVIS_CRON_SECRET: ${{ secrets.JARVIS_CRON_SECRET }}
+        run: |
+          if [ -z "$JARVIS_CRON_SECRET" ]; then
+            echo "::error::Add Actions secret JARVIS_CRON_SECRET with the same value as Vercel CRON_SECRET."
+            exit 1
+          fi
+      - name: Collect a market snapshot
+        env:
+          JARVIS_CRON_SECRET: ${{ secrets.JARVIS_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          response="$(curl --fail-with-body --silent --show-error --max-time 90 \
+            -H "Authorization: Bearer ${JARVIS_CRON_SECRET}" \
+            -H "Accept: application/json" \
+            "https://jarvis-ai-factory.vercel.app/api/cron/collector")"
+          echo "$response"
+          printf '%s' "$response" | python -c 'import json,sys; d=json.load(sys.stdin); assert d.get("ok") is True, d'

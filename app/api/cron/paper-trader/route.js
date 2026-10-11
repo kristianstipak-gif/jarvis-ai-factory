@@ -101,7 +101,7 @@ export async function GET(request) {
     for(const p of open) {
       const token=tokens.find(t=>t.mint===p.mint&&t.pair===p.pair);
       if(!token) continue;
-      const exit=evaluatePaperExit(p,token.priceUsd,nowMs);
+      const exit=evaluatePaperExit(p,token.priceUsd,nowMs,{maxHoldMinutes:research.selection?.params?.horizonMinutes ?? 60});
       if(!exit.close) continue;
       const net=netReturnPct(exit.grossReturnPct), pnl=Number(p.position_usd)*net/100;
       const update=await db.from("paper_positions").update({
@@ -114,9 +114,14 @@ export async function GET(request) {
     const refreshedResult=await db.from("paper_positions").select("*").eq("status","open");
     if(refreshedResult.error) throw new Error(refreshedResult.error.message);
     const refreshedOpen=refreshedResult.data||[], opened=[];
+    const selected=research.selection?.params;
     const ranked=(allowNewEntries ? tokens : []).map(t=>({...t,...evaluateAutoTradeCandidate(t,{
       equityUsd:equity,openPositions:refreshedOpen.length,tradesLastHour:recent.length,
-      dailyLossPct
+      dailyLossPct,
+      minLiquidityUsd:selected?.minLiquidityUsd,
+      minBuyRatio:selected?.minBuyRatio,
+      minVolumeLiquidityRatio:selected?.minVolumeLiquidityRatio,
+      minTransactions24h:selected?.minTransactions
     })})).filter(x=>x.decision==="PAPER_BUY_CANDIDATE")
       .sort((a,b)=>(b.metrics.buyRatio||0)-(a.metrics.buyRatio||0));
     for(const candidate of ranked) {

@@ -1,10 +1,12 @@
+import { timingSafeEqual } from "node:crypto";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const same = (a, b) => {
   if (!a || !b || typeof a !== "string" || typeof b !== "string") return false;
   const x = Buffer.from(a), y = Buffer.from(b);
-  return x.length === y.length && require("node:crypto").timingSafeEqual(x, y);
+  return x.length === y.length && timingSafeEqual(x, y);
 };
 
 async function send(chatId, text) {

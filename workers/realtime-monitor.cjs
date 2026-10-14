@@ -24,6 +24,56 @@ let pending = new Map();
 let running = false;
 let pendingSignal = false;
 
+const BINANCE_STREAMS = ["btcusdt", "ethusdt", "solusdt", "bnbusdt", "dogeusdt", "pepeusdt", "shibusdt"];
+let binanceSocket = null;
+let binanceReconnectTimer = null;
+const binancePrices = new Map();
+const binanceState = { connected: false, lastMessageAt: null, lastError: null, messages: 0, changedSymbols: 0 };
+
+function startBinanceStream() {
+  if (process.env.BINANCE_STREAM_ENABLED === "false") return;
+  if (typeof WebSocket !== "function") {
+    binanceState.lastError = "Runtime has no global WebSocket; use Node.js 22+";
+    console.error(JSON.stringify({ event: "binance-stream-unavailable", error: binanceState.lastError }));
+    return;
+  }
+  try {
+    const streams = BINANCE_STREAMS.map(s => s + "@ticker").join("/");
+    binanceSocket = new WebSocket("wss://stream.binance.com:9443/stream?streams=" + streams);
+    binanceSocket.addEventListener("open", () => {
+      binanceState.connected = true;
+      binanceState.lastError = null;
+      console.log(JSON.stringify({ event: "binance-stream-connected", symbols: BINANCE_STREAMS.length }));
+    });
+    binanceSocket.addEventListener("message", event => {
+      try {
+        const packet = JSON.parse(String(event.data));
+        const tick = packet.data || packet;
+        if (!tick.s || !tick.c) return;
+        const price = Number(tick.c);
+        if (!(price > 0) || !Number.isFinite(price)) return;
+        const previousPrice = binancePrices.get(tick.s);
+        binancePrices.set(tick.s, price);
+        binanceState.messages += 1;
+        binanceState.lastMessageAt = new Date().toISOString();
+        if (previousPrice && previousPrice !== price) binanceState.changedSymbols += 1;
+      } catch (error) {
+        binanceState.lastError = "invalid-stream-message: " + String(error?.message || error);
+      }
+    });
+    binanceSocket.addEventListener("error", () => { binanceState.lastError = "Binance WebSocket connection error"; });
+    binanceSocket.addEventListener("close", () => {
+      binanceState.connected = false;
+      binanceSocket = null;
+      if (!binanceReconnectTimer) binanceReconnectTimer = setTimeout(() => { binanceReconnectTimer = null; startBinanceStream(); }, 5000);
+    });
+  } catch (error) {
+    binanceState.connected = false;
+    binanceState.lastError = String(error?.message || error);
+    if (!binanceReconnectTimer) binanceReconnectTimer = setTimeout(() => { binanceReconnectTimer = null; startBinanceStream(); }, 5000);
+  }
+}
+
 function getKey(token) { return String(token.pair || token.address || token.mint || ""); }
 function meaningfulChanges(tokens, oldMap, thresholdPct = CHANGE_THRESHOLD_PCT) {
   const changed = [];
@@ -114,7 +164,8 @@ function startServer() {
       res.end(JSON.stringify({
         ok: true, ...state, pollIntervalMs: POLL_MS,
         minActionGapMs: MIN_ACTION_GAP_MS, changeThresholdPct: CHANGE_THRESHOLD_PCT,
-        previousPairsTracked: previous.size, strategyExecution: "paper-only"
+        previousPairsTracked: previous.size, strategyExecution: "paper-only",
+        binanceStream: { ...binanceState, trackedSymbols: [...binancePrices.keys()], prices: Object.fromEntries(binancePrices) }
       }));
       return;
     }
@@ -123,6 +174,7 @@ function startServer() {
   });
   server.listen(PORT, "0.0.0.0", () => {
     console.log(JSON.stringify({ event: "worker-started", port: PORT, pollIntervalMs: POLL_MS, mode: state.mode }));
+    startBinanceStream();
     void cycle();
     setInterval(() => void cycle(), POLL_MS);
   });

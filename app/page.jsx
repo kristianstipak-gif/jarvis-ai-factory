@@ -14,6 +14,9 @@ export default function Home() {
   const [min, setMin] = useState(0);
   const [data, setData] = useState([]);
   const [deepData, setDeepData] = useState([]);
+  const [binanceData, setBinanceData] = useState([]);
+  const [binanceError, setBinanceError] = useState("");
+  const [tradingStatus, setTradingStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [deepLoading, setDeepLoading] = useState(false);
   const [error, setError] = useState("");
@@ -46,6 +49,22 @@ export default function Home() {
       setError(e.message || "Live feed unavailable");
     } finally {
       setLoading(false);
+    }
+  }
+
+
+  async function loadTradingStatus() {
+    try {
+      const [marketResponse, statusResponse] = await Promise.all([
+        fetch("/api/binance/market", { cache: "no-store" }),
+        fetch("/api/trading/status", { cache: "no-store" })
+      ]);
+      const [marketJson, statusJson] = await Promise.all([marketResponse.json(), statusResponse.json()]);
+      setBinanceData(marketJson.symbols || []);
+      setBinanceError(marketResponse.ok ? "" : (marketJson.detail || marketJson.error || "Binance data unavailable"));
+      setTradingStatus(statusJson);
+    } catch (e) {
+      setBinanceError(e.message || "Tržní data nejsou dostupná");
     }
   }
 
@@ -98,9 +117,11 @@ export default function Home() {
 
   useEffect(() => {
     load();
+    loadTradingStatus();
     const id = setInterval(load, 60000);
+    const marketId = setInterval(loadTradingStatus, 15000);
     fetch("/api/assistant").then((r) => r.json()).then((j) => setAiMode(j.mode || "unknown")).catch(() => setAiMode("offline"));
-    return () => clearInterval(id);
+    return () => { clearInterval(id); clearInterval(marketId); };
   }, []);
 
   useEffect(() => { chatEnd.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [messages, sending]);
@@ -161,6 +182,14 @@ export default function Home() {
           </section>
           <section className="panel assistant-promo"><div className="panel-heading"><div><span className="eyebrow">OSOBNÍ ASISTENT</span><h3>Promluv si s JARVISem</h3></div><span className="ai-badge">AI</span></div><div className="promo-avatar">J</div><p>Zeptej se na cokoliv, požádej o vysvětlení nebo spusť podporovaný výzkumný příkaz.</p><button className="secondary-button" onClick={() => setSection("assistant")}>Otevřít konverzaci <span>→</span></button><small className="muted">{aiMode === "ai-enabled" ? "AI služba nakonfigurována" : "Pro obecné AI odpovědi je nutné nastavit AI API klíč."}</small></section>
         </div>
+        <section className="panel" style={{ marginTop: 18 }}>
+          <div className="panel-heading"><div><span className="eyebrow">BINANCE SPOT / REFRESH 15 S</span><h3>Hlavní tržní páry</h3></div><button className="text-button" onClick={loadTradingStatus}>↻ Obnovit</button></div>
+          {binanceError && <p className="section-desc">Feed: {binanceError}</p>}
+          <div className="table-wrap"><table><thead><tr><th>Pár</th><th>Poslední cena</th><th>Změna 24 h</th><th>Objem 24 h</th></tr></thead><tbody>
+            {binanceData.map((item) => <tr key={item.symbol}><td><strong>{item.symbol}</strong></td><td>{Number(item.price).toLocaleString("en-US",{maximumFractionDigits:8})}</td><td className={Number(item.priceChangePct24h)>=0?"positive":"negative"}>{Number(item.priceChangePct24h).toFixed(2)}%</td><td>{money(item.quoteVolume24h)}</td></tr>)}
+          </tbody></table>{!binanceData.length && <div className="empty-state">Čekám na veřejná tržní data Binance.</div>}</div>
+          <div className="safety-note"><span>ⓘ</span><p><strong>Obchodování je vypnuté.</strong> Stav připravenosti: {tradingStatus?.liveExecutionEnabled ? "povoleno" : "blokováno"}; chybějící konfigurace: {(tradingStatus?.missing || []).join(", ") || "žádná"}. Tato tabulka ukazuje REST snímky, nikoli tickový stream.</p></div>
+        </section>
         <div className="safety-note"><span>ⓘ</span><p><strong>Režim výzkumu</strong> — JARVIS aktuálně analyzuje data a testuje strategie. Živé obchody nejsou povolené. Tržní skóre není finanční doporučení.</p></div>
       </div>}
 

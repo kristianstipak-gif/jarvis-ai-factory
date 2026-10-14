@@ -38,8 +38,8 @@ function startBinanceStream() {
     return;
   }
   try {
-    const streams = BINANCE_STREAMS.map(s => s + "@ticker").join("/");
-    binanceSocket = new WebSocket("wss://stream.binance.com:9443/stream?streams=" + streams);
+    const streams = BINANCE_STREAMS.map(s => s + "@trade").join("/");
+    binanceSocket = new WebSocket("wss://data-stream.binance.vision/stream?streams=" + streams);
     binanceSocket.addEventListener("open", () => {
       binanceState.connected = true;
       binanceState.lastError = null;
@@ -49,8 +49,8 @@ function startBinanceStream() {
       try {
         const packet = JSON.parse(String(event.data));
         const tick = packet.data || packet;
-        if (!tick.s || !tick.c) return;
-        const price = Number(tick.c);
+        if (!tick.s || !(tick.p || tick.c)) return;
+        const price = Number(tick.p || tick.c);
         if (!(price > 0) || !Number.isFinite(price)) return;
         const previousPrice = binancePrices.get(tick.s);
         binancePrices.set(tick.s, price);

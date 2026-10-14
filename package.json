@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "monitor": "node workers/realtime-monitor.cjs",
-    "test:monitor": "node workers/realtime-monitor.test.cjs"
+    "test:monitor": "node workers/realtime-monitor.test.cjs",
+    "test:trading": "node --experimental-default-type=module research/trading-safety.test.mjs"
   },
   "dependencies": {
     "next": "latest",

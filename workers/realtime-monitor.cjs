@@ -130,5 +130,5 @@ function startServer() {
   process.on("SIGINT", () => server.close(() => process.exit(0)));
 }
 
-module.exports = { meaningfulChanges, startServer };
+module.exports = { meaningfulChanges, startServer, BINANCE_STREAMS };
 if (require.main === module) startServer();

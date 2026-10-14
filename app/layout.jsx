@@ -1,6 +1,12 @@
 export const metadata = {
-  title: "JARVIS MEME LAB",
-  description: "Research and risk analytics for Solana meme-token launches",
+  title: "JARVIS AI Control Center",
+  description: "Osobní AI asistent JARVIS, tržní výzkum a systémový panel.",
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#080b10",
 };
 
 export default function RootLayout({ children }) {

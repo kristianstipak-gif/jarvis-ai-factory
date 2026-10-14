@@ -1,0 +1,23 @@
+services:
+  - type: worker
+    name: jarvis-realtime-monitor
+    runtime: node
+    plan: starter
+    region: frankfurt
+    branch: main
+    buildCommand: npm install
+    startCommand: npm run monitor
+    autoDeploy: true
+    envVars:
+      - key: JARVIS_BASE_URL
+        value: https://jarvis-ai-factory.vercel.app
+      - key: POLL_INTERVAL_MS
+        value: "5000"
+      - key: MIN_ACTION_GAP_MS
+        value: "30000"
+      - key: CHANGE_THRESHOLD_PCT
+        value: "0.15"
+      - key: BINANCE_STREAM_ENABLED
+        value: "true"
+      - key: CRON_SECRET
+        sync: false

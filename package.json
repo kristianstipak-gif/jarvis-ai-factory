@@ -15,5 +15,8 @@
     "react": "latest",
     "react-dom": "latest",
     "@supabase/supabase-js": "^2.75.0"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

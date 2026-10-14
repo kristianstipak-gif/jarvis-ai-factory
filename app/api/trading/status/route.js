@@ -1,4 +1,4 @@
-import { assessTradingReadiness } from "../../../research/trading-safety.js";
+import { assessTradingReadiness } from "../../../../research/trading-safety.js";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export async function GET() {

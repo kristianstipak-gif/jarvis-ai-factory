@@ -1,0 +1,36 @@
+name: JARVIS Free Market Monitor
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: jarvis-free-market-monitor
+  cancel-in-progress: true
+jobs:
+  public-market-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check Binance public market feed
+        env:
+          BASE_URL: https://jarvis-ai-factory.vercel.app
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 20 "$BASE_URL/api/binance/market" -o /tmp/binance.json
+          node -e 'const d=require("/tmp/binance.json"); if (!d.ok || !Array.isArray(d.symbols) || d.symbols.length < 1) { console.error(JSON.stringify(d)); process.exit(1); } console.log(JSON.stringify({check:"binance-public-rest",ok:d.ok,symbols:d.symbols.length,observedAt:d.observedAt,stream:d.stream,liveTrading:d.liveTrading}));'
+      - name: Check Solana research scanner
+        env:
+          BASE_URL: https://jarvis-ai-factory.vercel.app
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 25 "$BASE_URL/api/strategy-lab" -o /tmp/solana.json
+          node -e 'const d=require("/tmp/solana.json"); if (d.ok !== true || !Array.isArray(d.candidates)) { console.error(JSON.stringify(d)); process.exit(1); } console.log(JSON.stringify({check:"solana-research-only",ok:d.ok,candidates:d.candidates.length,observedAt:d.observedAt,mode:d.mode}));'
+      - name: Assert live execution stays disabled
+        env:
+          BASE_URL: https://jarvis-ai-factory.vercel.app
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 15 "$BASE_URL/api/trading/status" -o /tmp/status.json
+          node -e 'const d=require("/tmp/status.json"); if (d.liveExecutionEnabled !== false) { console.error("Unexpected live execution state", JSON.stringify(d)); process.exit(1); } console.log(JSON.stringify({check:"live-execution-guard",liveExecutionEnabled:d.liveExecutionEnabled,missing:d.missing}));'

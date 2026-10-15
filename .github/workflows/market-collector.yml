@@ -25,6 +25,11 @@ jobs:
             echo "::error::Add Actions secret JARVIS_CRON_SECRET with the same value as Vercel CRON_SECRET."
             exit 1
           fi
+      - name: Assert live execution stays disabled
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 15 "https://jarvis-ai-factory.vercel.app/api/trading/status" -o /tmp/status.json
+          node -e 'const d=require("/tmp/status.json"); if (d.liveExecutionEnabled !== false || d.ordersAllowed !== false) { console.error("Unexpected live execution state", JSON.stringify(d)); process.exit(1); } console.log(JSON.stringify({check:"live-execution-guard",liveExecutionEnabled:d.liveExecutionEnabled,ordersAllowed:d.ordersAllowed}));'
       - name: Collect a market snapshot
         env:
           JARVIS_CRON_SECRET: ${{ secrets.JARVIS_CRON_SECRET }}

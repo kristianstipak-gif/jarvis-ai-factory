@@ -17,6 +17,8 @@ export default function Home() {
   const [binanceData, setBinanceData] = useState([]);
   const [binanceError, setBinanceError] = useState("");
   const [tradingStatus, setTradingStatus] = useState(null);
+  const [systemHealth, setSystemHealth] = useState(null);
+  const [healthLoading, setHealthLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deepLoading, setDeepLoading] = useState(false);
   const [error, setError] = useState("");
@@ -52,6 +54,20 @@ export default function Home() {
     }
   }
 
+
+  async function loadSystemHealth() {
+    setHealthLoading(true);
+    try {
+      const response = await fetch("/api/system/health", { cache: "no-store" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Diagnostika není dostupná.");
+      setSystemHealth(result);
+    } catch (e) {
+      setSystemHealth({ overall: "error", checks: [], error: e.message || "Diagnostika není dostupná." });
+    } finally {
+      setHealthLoading(false);
+    }
+  }
 
   async function loadTradingStatus() {
     try {
@@ -118,10 +134,12 @@ export default function Home() {
   useEffect(() => {
     load();
     loadTradingStatus();
+    loadSystemHealth();
+    const healthId = setInterval(loadSystemHealth, 60000);
     const id = setInterval(load, 60000);
     const marketId = setInterval(loadTradingStatus, 15000);
     fetch("/api/assistant").then((r) => r.json()).then((j) => setAiMode(j.mode || "unknown")).catch(() => setAiMode("offline"));
-    return () => { clearInterval(id); clearInterval(marketId); };
+    return () => { clearInterval(id); clearInterval(marketId); clearInterval(healthId); };
   }, []);
 
   useEffect(() => { chatEnd.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [messages, sending]);
@@ -175,6 +193,28 @@ export default function Home() {
           <article className="stat-card"><div className="stat-top"><span>Souhrnná likvidita</span><span className="stat-symbol">$</span></div><strong>{loading ? "…" : "$" + compact(totalLiquidity)}</strong><small>Součet dostupných párů ve feedu</small></article>
           <article className="stat-card"><div className="stat-top"><span>Objem za 24 h</span><span className="stat-symbol">⌁</span></div><strong>{loading ? "…" : "$" + compact(totalVolume)}</strong><small>Souhrnné tržní údaje</small></article>
         </div>
+        <section className="panel" style={{ marginTop: 18 }}>
+          <div className="panel-heading">
+            <div><span className="eyebrow">JARVIS DOCTOR</span><h3>Systémová diagnostika</h3></div>
+            <button className="text-button" onClick={loadSystemHealth} disabled={healthLoading}>{healthLoading ? "Kontroluji…" : "↻ Zkontrolovat"}</button>
+          </div>
+          {systemHealth?.error && <p className="section-desc">{systemHealth.error}</p>}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
+            {(systemHealth?.checks || []).map((check) => <article className="method-card" key={check.id}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <strong>{check.label}</strong>
+                <span style={{ color: check.status === "ok" ? "#16a36a" : check.status === "warning" ? "#c58a22" : "#d34d4d", fontWeight: 700, fontSize: 12 }}>
+                  {check.status === "ok" ? "OK" : check.status === "warning" ? "POZOR" : "CHYBA"}
+                </span>
+              </div>
+              <p>{check.detail}</p>
+            </article>)}
+            {!systemHealth && <p className="section-desc">Načítám stav tržního feedu, databáze, výzkumu a AI…</p>}
+          </div>
+          {systemHealth?.summary && <p className="section-desc" style={{ marginTop: 12 }}>
+            Poslední kontrola: {new Date(systemHealth.checkedAt).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })} · Data: {systemHealth.summary.dataAgeMinutes == null ? "neznámé stáří" : Math.round(systemHealth.summary.dataAgeMinutes) + " min"} · Živé obchodování: vypnuto.
+          </p>}
+        </section>
         <div className="content-grid">
           <section className="panel"><div className="panel-heading"><div><span className="eyebrow">LIVE FEED</span><h3>Nejvýše hodnocení</h3></div><button className="text-button" onClick={() => setSection("market")}>Všechny položky →</button></div>
             {rows.slice(0, 5).map((t) => <div className="token-line" key={t.pair}><div className="token-avatar">{(t.symbol || "?").slice(0, 1)}</div><div className="token-name"><strong>{t.symbol}</strong><small>{t.name}</small></div><div className={"token-score s" + tier(t.score)}>{t.score}<small>/100</small></div><div className="token-change">{Number(t.priceChange24h || 0) > 0 ? "+" : ""}{Number(t.priceChange24h || 0).toFixed(1)}%</div></div>)}
@@ -188,7 +228,7 @@ export default function Home() {
           <div className="table-wrap"><table><thead><tr><th>Pár</th><th>Poslední cena</th><th>Změna 24 h</th><th>Objem 24 h</th></tr></thead><tbody>
             {binanceData.map((item) => <tr key={item.symbol}><td><strong>{item.symbol}</strong></td><td>{Number(item.price).toLocaleString("en-US",{maximumFractionDigits:8})}</td><td className={Number(item.priceChangePct24h)>=0?"positive":"negative"}>{Number(item.priceChangePct24h).toFixed(2)}%</td><td>{money(item.quoteVolume24h)}</td></tr>)}
           </tbody></table>{!binanceData.length && <div className="empty-state">Čekám na veřejná tržní data Binance.</div>}</div>
-          <div className="safety-note"><span>ⓘ</span><p><strong>Obchodování je vypnuté.</strong> Stav připravenosti: {tradingStatus?.liveExecutionEnabled ? "povoleno" : "blokováno"}; chybějící konfigurace: {(tradingStatus?.missing || []).join(", ") || "žádná"}. Tato tabulka ukazuje REST snímky, nikoli tickový stream.</p></div>
+          <div className="safety-note"><span>ⓘ</span><p><strong>Obchodování je vypnuté.</strong> Živé obchodování je záměrně vypnuté. Chybějící položky jsou požadavky pro případný budoucí live režim, nikoli poruchy aktuálního výzkumného scanneru: {(tradingStatus?.missing || []).join(", ") || "žádné"}. Tato tabulka ukazuje REST snímky, nikoli tickový stream.</p></div>
         </section>
         <div className="safety-note"><span>ⓘ</span><p><strong>Režim výzkumu</strong> — JARVIS aktuálně analyzuje data a testuje strategie. Živé obchody nejsou povolené. Tržní skóre není finanční doporučení.</p></div>
       </div>}

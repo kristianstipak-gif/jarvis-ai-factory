@@ -1,14 +1,11 @@
 import { collectFromUrl } from "../../../../research/collector.js";
+import { isAuthorizedCronRequest } from "../../../../research/cron-auth.js";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(request) {
-  const secret = process.env.CRON_SECRET;
-  const authorization = request.headers.get("authorization");
-
-  // Vercel Cron sends its own authorization header when CRON_SECRET is configured.
-  // Never leave this endpoint unauthenticated in production.
-  if (!secret || authorization !== "Bearer " + secret) {
+  if (!(await isAuthorizedCronRequest(request))) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -28,7 +25,7 @@ export async function GET(request) {
         tier: x.scoring.tier,
         riskCount: x.scoring.risk.riskCount,
       })),
-    });
+    }, { headers: { "cache-control": "no-store" } });
   } catch (error) {
     return Response.json(
       { ok: false, error: "Collector job failed", detail: String(error) },

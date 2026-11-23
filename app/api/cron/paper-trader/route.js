@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { isAuthorizedCronRequest } from "../../../../research/cron-auth.js";
 import { evaluateAutoTradeCandidate } from "../../../../research/auto-trader.js";
 import { evaluatePaperExit, netReturnPct, paperPositionSize, researchGatePassed } from "../../../../research/paper-trading.js";
 import { createStorageAdapter } from "../../../../research/storage.js";
@@ -49,8 +50,7 @@ async function getTokens(extraAddresses = []) {
   }).map(toToken).filter(t=>t.priceUsd>0);
 }
 export async function GET(request) {
-  const expected=process.env.CRON_SECRET;
-  if(!expected || request.headers.get("authorization")!==`Bearer ${expected}`) {
+  if (!(await isAuthorizedCronRequest(request))) {
     return Response.json({ok:false,error:"Unauthorized"},{status:401});
   }
   const supabaseUrl=process.env.SUPABASE_URL;

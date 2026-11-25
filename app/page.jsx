@@ -30,7 +30,51 @@ export default function Home() {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [businessLeads, setBusinessLeads] = useState([]);
+  const [leadName, setLeadName] = useState("");
+  const [leadType, setLeadType] = useState("Levigo Design");
+  const [leadContact, setLeadContact] = useState("");
+  const [leadNote, setLeadNote] = useState("");
+  const [leadFilter, setLeadFilter] = useState("Vše");
   const chatEnd = useRef(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("jarvis-business-leads-v1");
+      if (saved) setBusinessLeads(JSON.parse(saved));
+      else setBusinessLeads([
+        {id:"decin-arch-1",name:"Větrovec Architekt",type:"Levigo Design",contact:"+420 724 147 247",note:"Architektonické studio v Děčíně. Možný kontakt pro doporučení dekorativních povrchů do interiérů.",status:"K prověření"},
+        {id:"decin-arch-2",name:"Architektonická kancelář Ing. arch. Stránský",type:"Levigo Design",contact:"+420 412 535 043",note:"Návrhy interiérů a rekonstrukce. Ověřit vhodnost spolupráce.",status:"K prověření"},
+        {id:"decin-build-1",name:"STAVBY JOŽÁK s.r.o.",type:"NOBERON",contact:"+420 603 292 373",note:"Stavební firma v regionu Děčína. Prověřit možnost subdodávek nebo doporučení.",status:"K prověření"},
+        {id:"decin-prop-1",name:"Stavební Bytové Družstvo Děčín",type:"NOBERON",contact:"+420 725 076 673",note:"Správa nemovitostí. Ověřit veřejné poptávky a postup registrace dodavatele.",status:"K prověření"},
+        {id:"decin-prop-2",name:"TOMMI - SEVER, s.r.o.",type:"NOBERON",contact:"+420 412 535 197",note:"Správa nemovitostí v Děčíně. Prověřit vhodné veřejné zakázky a dodavatelskou spolupráci.",status:"K prověření"}
+      ]);
+    } catch { setBusinessLeads([]); }
+  }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem("jarvis-business-leads-v1", JSON.stringify(businessLeads)); } catch {}
+  }, [businessLeads]);
+
+  function addBusinessLead(e) {
+    e.preventDefault();
+    if (!leadName.trim()) return;
+    setBusinessLeads((prev) => [{id:"lead-"+Date.now(),name:leadName.trim(),type:leadType,contact:leadContact.trim(),note:leadNote.trim(),status:"K prověření"},...prev]);
+    setLeadName(""); setLeadContact(""); setLeadNote("");
+  }
+
+  function updateLeadStatus(id,status) {
+    setBusinessLeads((prev) => prev.map((lead) => lead.id === id ? {...lead,status} : lead));
+  }
+
+  function exportLeads() {
+    const header = ["Firma","Služba","Kontakt","Poznámka","Stav"];
+    const lines = businessLeads.map((l) => [l.name,l.type,l.contact,l.note,l.status]);
+    const csv = [header,...lines].map((row) => row.map((v) => '"'+String(v||"").replaceAll('"','""')+'"').join(";")).join("\\n");
+    const blob = new Blob(["\\uFEFF"+csv],{type:"text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href=url; a.download="jarvis-obchodni-kontakty.csv"; a.click(); URL.revokeObjectURL(url);
+  }
 
   async function load() {
     setLoading(true);
@@ -154,7 +198,7 @@ export default function Home() {
 
   const navItems = [
     ["overview", "⌂", "Přehled"],
-    ["assistant", "✳", "JARVIS AI"],
+    ["assistant", "✳", "JARVIS AI"],\n    ["business", "◎", "Obchodní engine"],
     ["market", "↗", "Tržní scanner"],
     ["intelligence", "◈", "Hloubková analýza"],
     ["method", "☷", "Jak JARVIS funguje"]
@@ -252,6 +296,36 @@ export default function Home() {
           <form className="chat-form" onSubmit={(e) => { e.preventDefault(); sendMessage(); }}><textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Napiš JARVISovi zprávu…" rows={2} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }} /><button type="submit" className="send-button" disabled={sending || !draft.trim()} aria-label="Odeslat zprávu">{sending ? "…" : "↑"}</button><small>Enter odešle · Shift + Enter nový řádek</small></form>
         </section>
         <div className="safety-note"><span>ⓘ</span><p>JARVIS může ovládat pouze nástroje, které jsou v aplikaci skutečně připojené. Příkazy pro obchodování, platby nebo změny účtů vyžadují samostatné zabezpečené propojení a potvrzení.</p></div>
+      </div>}
+
+      {section === "business" && <div className="page-content">
+        <div className="section-heading"><div><span className="eyebrow">JARVIS MONEY ENGINE / CRM</span><h2>Obchodní příležitosti</h2><p className="section-desc">Evidence kontaktů, nabídek a dalších kroků. JARVIS zatím nic neposílá automaticky.</p></div><button className="secondary-button" onClick={exportLeads}>↓ Export CSV</button></div>
+        <div className="stats-grid">
+          <article className="stat-card"><div className="stat-top"><span>V evidenci</span><span className="stat-symbol">◎</span></div><strong>{businessLeads.length}</strong><small>Uložené kontakty v tomto prohlížeči</small></article>
+          <article className="stat-card"><div className="stat-top"><span>K prověření</span><span className="stat-symbol">⌕</span></div><strong>{businessLeads.filter(x=>x.status==="K prověření").length}</strong><small>Je potřeba ověřit vhodnost spolupráce</small></article>
+          <article className="stat-card"><div className="stat-top"><span>Kontaktováno</span><span className="stat-symbol">↗</span></div><strong>{businessLeads.filter(x=>x.status==="Kontaktováno").length}</strong><small>Kontakt musí proběhnout ručně</small></article>
+          <article className="stat-card"><div className="stat-top"><span>Vyhrané zakázky</span><span className="stat-symbol">✓</span></div><strong>{businessLeads.filter(x=>x.status==="Vyhráno").length}</strong><small>Skutečně potvrzené zakázky</small></article>
+        </div>
+        <section className="panel" style={{marginTop:18}}>
+          <div className="panel-heading"><div><span className="eyebrow">NOVÝ ZÁZNAM</span><h3>Přidat obchodní příležitost</h3></div></div>
+          <form className="lead-form" onSubmit={addBusinessLead}>
+            <label>Název firmy nebo kontakt<input value={leadName} onChange={e=>setLeadName(e.target.value)} placeholder="Např. architektonické studio" required /></label>
+            <label>Naše služba<select value={leadType} onChange={e=>setLeadType(e.target.value)}><option>Levigo Design</option><option>NOBERON</option><option>JARVIS automatizace</option></select></label>
+            <label>Telefon / kontakt<input value={leadContact} onChange={e=>setLeadContact(e.target.value)} placeholder="Telefon nebo vlastní poznámka" /></label>
+            <label>Poznámka<textarea value={leadNote} onChange={e=>setLeadNote(e.target.value)} rows={2} placeholder="Proč je kontakt zajímavý a co ověřit…" /></label>
+            <button className="primary-button" type="submit">+ Přidat do CRM</button>
+          </form>
+        </section>
+        <section className="panel" style={{marginTop:18}}>
+          <div className="panel-heading"><div><span className="eyebrow">PIPELINE</span><h3>Kontakty a další kroky</h3></div><select value={leadFilter} onChange={e=>setLeadFilter(e.target.value)}><option>Vše</option><option>K prověření</option><option>Kontaktováno</option><option>Jednání</option><option>Nabídka odeslána</option><option>Vyhráno</option><option>Uzavřeno</option></select></div>
+          <div className="lead-list">{businessLeads.filter(l=>leadFilter==="Vše"||l.status===leadFilter).map(lead=><article className="lead-card" key={lead.id}>
+            <div className="lead-card-top"><div><strong>{lead.name}</strong><small>{lead.type} · {lead.contact||"Kontakt zatím nedoplněn"}</small></div><select aria-label={"Stav "+lead.name} value={lead.status} onChange={e=>updateLeadStatus(lead.id,e.target.value)}><option>K prověření</option><option>Kontaktováno</option><option>Jednání</option><option>Nabídka odeslána</option><option>Vyhráno</option><option>Uzavřeno</option></select></div>
+            <p>{lead.note||"Bez poznámky."}</p>
+          </article>)}
+          {!businessLeads.length&&<div className="empty-state">Zatím tu nejsou žádné kontakty. Přidej první příležitost.</div>}
+          </div>
+        </section>
+        <div className="safety-note"><span>ⓘ</span><p><strong>Soukromé lokální CRM.</strong> Kontakty se ukládají pouze do úložiště tohoto prohlížeče a nejsou synchronizované mezi zařízeními. Před oslovením ověř správnost údajů, oprávnění ke kontaktování a obchodní relevanci. V ČR neposílej nevyžádané marketingové e-maily bez předchozího souhlasu.</p></div>
       </div>}
 
       {section === "market" && <div className="page-content"><div className="section-heading"><div><span className="eyebrow">SOLANA / MARKET DATA</span><h2>Tržní scanner</h2><p className="section-desc">Aktuálně dostupné kandidáty, likviditu a pohyb cen.</p></div><button className="secondary-button" onClick={load} disabled={loading}>{loading ? "Načítám…" : "↻ Obnovit"}</button></div>

@@ -156,14 +156,14 @@ export default function Home() {
     ["overview", "⌂", "Přehled"],
     ["assistant", "✳", "JARVIS AI"],
     ["market", "↗", "Tržní scanner"],
-    ["intelligence", "◈", "Deep intelligence"],
-    ["method", "☷", "Strategie a rizika"]
+    ["intelligence", "◈", "Hloubková analýza"],
+    ["method", "☷", "Jak JARVIS funguje"]
   ];
 
   return <main className="app-shell">
     <aside className="sidebar">
       <div className="brand"><div className="brand-mark">J</div><div><strong>JARVIS</strong><small>AI CONTROL CENTER</small></div></div>
-      <div className="nav-label">PRACOVNÍ PROSTOR</div>
+      <div className="nav-label">HLAVNÍ NAVIGACE</div>
       <nav className="side-nav">
         {navItems.map(([id, icon, label]) => <button key={id} className={section === id ? "side-link active" : "side-link"} onClick={() => setSection(id)}><span className="nav-icon">{icon}</span>{label}{id === "assistant" && <i className="nav-dot" />}</button>)}
       </nav>
@@ -183,8 +183,19 @@ export default function Home() {
 
       {section === "overview" && <div className="page-content">
         <section className="welcome-panel">
-          <div className="welcome-copy"><span className="overline"><i className="pulse" /> JARVIS CORE / ONLINE PANEL</span><h2>Všechno důležité.<br /><em>Na jednom místě.</em></h2><p>Ovládej výzkumné nástroje, kontroluj tržní data a komunikuj s JARVISem z jednoho přehledného rozhraní.</p><button className="primary-button" onClick={() => setSection("assistant")}>Otevřít JARVIS AI <span>→</span></button></div>
+          <div className="welcome-copy"><span className="overline"><i className="pulse" /> JARVIS CORE / ONLINE PANEL</span><h2>Všechno důležité.<br /><em>Na jednom místě.</em></h2><p>Všechny důležité nástroje na jednom místě. Začni jednoduchým krokem a JARVIS tě provede dalšími možnostmi.</p><button className="primary-button" onClick={() => setSection("assistant")}>Otevřít JARVIS AI <span>→</span></button></div>
           <div className="orb-wrap"><div className="orb-ring ring-one" /><div className="orb-ring ring-two" /><div className="orb"><span>J</span><i /></div><div className="orb-caption">PERSONAL INTELLIGENCE<br /><b>READY WHEN YOU ARE</b></div></div>
+        </section>
+        <section className="quick-start panel" aria-labelledby="quick-start-title">
+          <div className="quick-start-head">
+            <div><span className="eyebrow">PRVNÍ KROKY</span><h3 id="quick-start-title">Začni s JARVISem za minutu</h3><p>Vyber si, co chceš udělat. Každá část má jasný účel a vysvětlení.</p></div>
+            <span className="quick-start-count">01 / 03</span>
+          </div>
+          <div className="quick-start-grid">
+            <button className="quick-start-card" onClick={() => setSection("assistant")}><span className="quick-start-icon">✳</span><span><strong>Promluv si s AI</strong><small>Zeptej se nebo napiš příkaz vlastními slovy.</small></span><b>→</b></button>
+            <button className="quick-start-card" onClick={() => setSection("market")}><span className="quick-start-icon">↗</span><span><strong>Prozkoumej trh</strong><small>Prohlédni si kandidáty a jejich dostupná data.</small></span><b>→</b></button>
+            <button className="quick-start-card" onClick={() => setSection("method")}><span className="quick-start-icon">ⓘ</span><span><strong>Poznej možnosti</strong><small>Zjisti, co JARVIS umí a jaká má omezení.</small></span><b>→</b></button>
+          </div>
         </section>
         <div className="section-heading"><div><span className="eyebrow">SYSTÉMOVÝ PŘEHLED</span><h2>Stav a data</h2></div><span className="updated">{lastUpdated ? "Aktualizováno " + lastUpdated.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" }) : "Čekám na data"}</span></div>
         <div className="stats-grid">
@@ -248,11 +259,11 @@ export default function Home() {
         <div className="table-wrap"><table><thead><tr><th>Token</th><th>Skóre</th><th>Likvidita</th><th>Objem 24 h</th><th>Transakce</th><th>Nákupy</th><th>Změna 24 h</th></tr></thead><tbody>{rows.map((t) => <tr key={t.pair}><td><strong>{t.symbol}</strong><small>{t.name} · {t.dex}</small></td><td><span className={"table-score s" + tier(t.score)}>{t.score}</span></td><td>{money(t.liquidityUsd)}</td><td>{money(t.volume24h)}</td><td>{t.txns24h ?? "—"}</td><td>{t.txns24h ? Math.round(t.buys24h / t.txns24h * 100) + "%" : "—"}</td><td className={Number(t.priceChange24h) >= 0 ? "positive" : "negative"}>{Number(t.priceChange24h || 0).toFixed(1)}%</td></tr>)}</tbody></table>{!loading && !rows.length && <div className="empty-state">Žádné položky pro vybraný filtr.</div>}</div>
       </div>}
 
-      {section === "intelligence" && <div className="page-content"><div className="section-heading"><div><span className="eyebrow">ON-CHAIN / RISK ANALYSIS</span><h2>Deep intelligence</h2><p className="section-desc">Hlubší analýza tokenů. Spuštění může chvíli trvat.</p></div><button className="primary-button" onClick={deepScan} disabled={deepLoading}>{deepLoading ? "Analyzuji…" : "Spustit deep scan →"}</button></div>
+      {section === "intelligence" && <div className="page-content"><div className="section-heading"><div><span className="eyebrow">ON-CHAIN / RISK ANALYSIS</span><h2>Deep intelligence</h2><p className="section-desc">Prohlédni si podrobnější on-chain signály a rizikové indikátory. Výsledky jsou analytické, ne investiční doporučení.</p></div><button className="primary-button" onClick={deepScan} disabled={deepLoading}>{deepLoading ? "Analyzuji…" : "Spustit deep scan →"}</button></div>
         {deepData.length ? <div className="table-wrap"><table><thead><tr><th>Token / adresa</th><th>Skóre</th><th>Úroveň</th><th>Rizika</th><th>Koncentrace</th><th>Verdikt</th></tr></thead><tbody>{deepData.map((item) => { const i = item.intelligence || {}; const r = i.risk || {}; return <tr key={item.snapshot?.mint || item.snapshot?.pair}><td><strong>{item.snapshot?.mint?.slice(0, 10) || "Neznámý"}</strong><small>{item.snapshot?.pair || "—"}</small></td><td><span className={"table-score s" + tier(i.score || 0)}>{i.score ?? "—"}</span></td><td>{i.tier || "—"}</td><td>{r.riskCount ?? 0}</td><td>{r.concentration == null ? "—" : Math.round(r.concentration * 100) + "%"}</td><td>{i.explanation?.verdict || "—"}</td></tr>; })}</tbody></table></div> : <div className="empty-card"><div className="empty-icon">◈</div><h3>Ještě nemáme výsledky skenu</h3><p>Spusť analýzu a JARVIS načte dostupné on-chain rizikové signály.</p><button className="primary-button" onClick={deepScan} disabled={deepLoading}>{deepLoading ? "Probíhá analýza…" : "Spustit analýzu"}</button></div>}
       </div>}
 
-      {section === "method" && <div className="page-content"><div className="section-heading"><div><span className="eyebrow">DOKUMENTACE / LIMITY</span><h2>Strategie a rizika</h2><p className="section-desc">Co JARVIS skutečně dělá a co zatím ne.</p></div></div><div className="method-grid">{[["01","Tržní data","Veřejné tržní feedy poskytují souhrnné údaje. Nejde o ticková data ani garantovanou rychlost."],["02","Skórování","Signály třídí kandidáty podle aktivity a dostupných rizikových metrik. Skóre není pravděpodobnost zisku."],["03","Deep intelligence","Podle dostupných endpointů prověřuje on-chain údaje a varovné indikátory."],["04","Paper trading","Strategie je potřeba ověřovat historicky a nanečisto včetně poplatků, skluzu a likvidity."],["05","AI asistent","Obecný chat vyžaduje konfiguraci AI API na serveru. Tajné klíče se nezadávají do chatu."],["06","Živé obchodování","V této verzi vypnuto. Není zde potvrzené bezpečné automatické podepisování a provádění obchodů."]].map(([n,t,d]) => <article className="method-card" key={n}><span>{n}</span><h3>{t}</h3><p>{d}</p></article>)}</div></div>}
+      {section === "method" && <div className="page-content"><div className="section-heading"><div><span className="eyebrow">DOKUMENTACE / LIMITY</span><h2>Strategie a rizika</h2><p className="section-desc">Jednoduché vysvětlení jednotlivých částí, jejich možností a bezpečnostních omezení.</p></div></div><div className="method-grid">{[["01","Tržní data","Veřejné tržní feedy poskytují souhrnné údaje. Nejde o ticková data ani garantovanou rychlost."],["02","Skórování","Signály třídí kandidáty podle aktivity a dostupných rizikových metrik. Skóre není pravděpodobnost zisku."],["03","Deep intelligence","Podle dostupných endpointů prověřuje on-chain údaje a varovné indikátory."],["04","Paper trading","Strategie je potřeba ověřovat historicky a nanečisto včetně poplatků, skluzu a likvidity."],["05","AI asistent","Obecný chat vyžaduje konfiguraci AI API na serveru. Tajné klíče se nezadávají do chatu."],["06","Živé obchodování","V této verzi vypnuto. Není zde potvrzené bezpečné automatické podepisování a provádění obchodů."]].map(([n,t,d]) => <article className="method-card" key={n}><span>{n}</span><h3>{t}</h3><p>{d}</p></article>)}</div></div>}
 
       <footer className="app-footer"><span>JARVIS CORE</span><span>Výzkumný režim · Nejde o finanční poradenství</span><span>{lastUpdated ? "Sync " + lastUpdated.toLocaleTimeString("cs-CZ", {hour:"2-digit",minute:"2-digit"}) : "Připraven"}</span></footer>
     </section>

@@ -30,7 +30,7 @@ export default function Home() {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [businessLeads, setBusinessLeads] = useState([]);
+  const [businessLeads, setBusinessLeads] = useState([]);\n  const [leadsLoaded, setLeadsLoaded] = useState(false);
   const [leadName, setLeadName] = useState("");
   const [leadType, setLeadType] = useState("Levigo Design");
   const [leadContact, setLeadContact] = useState("");

@@ -30,7 +30,7 @@ export default function Home() {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [businessLeads, setBusinessLeads] = useState([]);\n  const [leadsLoaded, setLeadsLoaded] = useState(false);
+  const [businessLeads, setBusinessLeads] = useState([]);
   const [leadName, setLeadName] = useState("");
   const [leadType, setLeadType] = useState("Levigo Design");
   const [leadContact, setLeadContact] = useState("");
@@ -52,19 +52,16 @@ export default function Home() {
     } catch { setBusinessLeads([]); }
   }, []);
 
-  useEffect(() => {
-    try { localStorage.setItem("jarvis-business-leads-v1", JSON.stringify(businessLeads)); } catch {}
-  }, [businessLeads]);
 
   function addBusinessLead(e) {
     e.preventDefault();
     if (!leadName.trim()) return;
-    setBusinessLeads((prev) => [{id:"lead-"+Date.now(),name:leadName.trim(),type:leadType,contact:leadContact.trim(),note:leadNote.trim(),status:"K prověření"},...prev]);
+    setBusinessLeads((prev) => { const next=[{id:"lead-"+Date.now(),name:leadName.trim(),type:leadType,contact:leadContact.trim(),note:leadNote.trim(),status:"K prověření"},...prev]; try { localStorage.setItem("jarvis-business-leads-v1",JSON.stringify(next)); } catch {} return next; });
     setLeadName(""); setLeadContact(""); setLeadNote("");
   }
 
   function updateLeadStatus(id,status) {
-    setBusinessLeads((prev) => prev.map((lead) => lead.id === id ? {...lead,status} : lead));
+    setBusinessLeads((prev) => { const next=prev.map((lead) => lead.id === id ? {...lead,status} : lead); try { localStorage.setItem("jarvis-business-leads-v1",JSON.stringify(next)); } catch {} return next; });
   }
 
   function exportLeads() {

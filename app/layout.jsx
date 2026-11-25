@@ -1,3 +1,5 @@
+import "./globals.css";
+
 export const metadata = {
   title: "JARVIS AI Control Center",
   description: "Osobní AI asistent JARVIS, tržní výzkum a systémový panel.",

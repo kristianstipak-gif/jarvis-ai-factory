@@ -92,3 +92,30 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+
+/* Money Engine CRM */
+.lead-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.lead-form label{display:flex;flex-direction:column;gap:7px;color:#aebdca;font-size:11px;font-weight:650}
+.lead-form input,.lead-form select,.lead-form textarea,.panel-heading select,.lead-card select{width:100%;min-width:0;border:1px solid #304151;border-radius:9px;background:#0b131c;color:#edf4fb;padding:11px 12px;font:inherit;font-size:12px}
+.lead-form textarea{resize:vertical}
+.lead-form input:focus,.lead-form select:focus,.lead-form textarea:focus,.lead-card select:focus{outline:2px solid #8ce8c566;border-color:#8ce8c5}
+.lead-form label:nth-child(4){grid-column:1/-1}
+.lead-form button{justify-self:start}
+.lead-list{display:grid;gap:10px}
+.lead-card{padding:15px;border:1px solid #2b3a49;border-radius:12px;background:linear-gradient(145deg,#121d28,#0e161f)}
+.lead-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.lead-card-top>div{min-width:0}
+.lead-card-top strong,.lead-card-top small{display:block}
+.lead-card-top strong{font-size:13px;line-height:1.4}
+.lead-card-top small{margin-top:5px;color:#91a3b6;font-size:10px;line-height:1.5}
+.lead-card select{max-width:180px;padding:8px;font-size:10px}
+.lead-card p{margin:11px 0 0;color:#a9b7c5;font-size:11px;line-height:1.65}
+@media(max-width:720px){
+ .lead-form{grid-template-columns:1fr}
+ .lead-form label:nth-child(4){grid-column:auto}
+ .lead-form button{width:100%}
+ .lead-card-top{flex-direction:column}
+ .lead-card select{max-width:none;width:100%}
+ .panel-heading select{max-width:145px}
+}
